@@ -1,0 +1,68 @@
+# Node modules
+node_modules/
+
+# React Native
+.expo/
+.expo-shared/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# macOS
+.DS_Store
+
+# Temporary files created by Metro
+.metro-health-check*
+
+# Android/IntelliJ
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+*.keystore
+!debug.keystore
+
+# iOS/Xcode
+ios/Pods/
+ios/*.xcworkspace
+xcuserdata/
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.perspectivev3
+!default.perspectivev3
+DerivedData/
+ios/build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+ios/Pods/
+
+# VSCode
+.vscode/
+
+# Testing
+coverage/
+
+# Logs
+logs
+*.log
+yarn-debug.log*
+yarn-error.log*

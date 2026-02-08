@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "EmotionCompanion",
+    "slug": "emotion-companion",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emotioncompanion.app"
+    },
+    "android": {
+      "package": "com.emotioncompanion.app"
+    }
+  }
+}

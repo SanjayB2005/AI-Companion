@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS and API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        button { padding: 10px 20px; margin: 10px 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #45a049; }
+        #result { margin-top: 20px; padding: 15px; background: #f9f9f9; border-left: 4px solid #4CAF50; white-space: pre-wrap; }
+        .error { border-left-color: #f44336; }
+        .success { border-left-color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 Backend Connection Test</h1>
+        <p>This page tests direct connection to Django backend at <strong>http://localhost:8000/api</strong></p>
+        
+        <div>
+            <button onclick="testCORS()">Test CORS (OPTIONS)</button>
+            <button onclick="testLogin()">Test Login</button>
+            <button onclick="testRegister()">Test Register</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000/api';
+        const resultDiv = document.getElementById('result');
+
+        function showResult(text, success = true) {
+            resultDiv.className = success ? 'success' : 'error';
+            resultDiv.textContent = text;
+        }
+
+        async function testCORS() {
+            showResult('Testing CORS preflight...', true);
+            try {
+                const response = await fetch(`${API_URL}/auth/login/`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'content-type'
+                    }
+                });
+                
+                const corsHeader = response.headers.get('Access-Control-Allow-Origin');
+                const result = `✅ CORS Test Successful!\n\nStatus: ${response.status}\nAccess-Control-Allow-Origin: ${corsHeader}\n\nAll CORS Headers:\n${Array.from(response.headers.entries()).filter(([k]) => k.includes('access-control')).map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+                showResult(result, true);
+            } catch (error) {
+                showResult(`❌ CORS Test Failed!\n\nError: ${error.message}\n\nThis usually means:\n1. Backend is not running\n2. CORS is not configured\n3. Network connection issue`, false);
+            }
+        }
+
+        async function testLogin() {
+            showResult('Testing login...', true);
+            try {
+                const response = await fetch(`${API_URL}/auth/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'newuser@example.com',
+                        password: 'SecurePass123!'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`✅ Login Successful!\n\nStatus: ${response.status}\nUser: ${data.user.email}\nUsername: ${data.user.username}\nAccess Token: ${data.tokens.access.substring(0, 50)}...\nRefresh Token: ${data.tokens.refresh.substring(0, 50)}...`, true);
+                } else {
+                    showResult(`❌ Login Failed!\n\nStatus: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`, false);
+                }
+            } catch (error) {
+                showResult(`❌ Login Request Failed!\n\nError: ${error.message}\n\nCheck:\n1. Is Django running on port 8000?\n2. Is CORS configured?\n3. Browser console for more details`, false);
+            }
+        }
+
+        async function testRegister() {
+            const randomNum = Math.floor(Math.random() * 10000);
+            showResult(`Testing registration with testuser${randomNum}...`, true);
+            try {
+                const response = await fetch(`${API_URL}/auth/register/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: `testuser${randomNum}@example.com`,
+                        username: `testuser${randomNum}`,
+                        password: 'TestPass123!',
+                        password_confirm: 'TestPass123!',
+                        first_name: 'Test',
+                        last_name: 'User'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`✅ Registration Successful!\n\nStatus: ${response.status}\nUser: ${data.user.email}\nUsername: ${data.user.username}\nAccess Token: ${data.tokens.access.substring(0, 50)}...`, true);
+                } else {
+                    showResult(`❌ Registration Failed!\n\nStatus: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}`, false);
+                }
+            } catch (error) {
+                showResult(`❌ Registration Request Failed!\n\nError: ${error.message}`, false);
+            }
+        }
+
+        // Auto-run CORS test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testCORS, 500);
+        });
+    </script>
+</body>
+</html>

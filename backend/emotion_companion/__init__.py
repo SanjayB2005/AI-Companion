@@ -1,0 +1,1 @@
+# Emotion Companion Django Project
