@@ -9,21 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
-
-// Color constants
-const PROFILE_COLORS = {
-  primary: '#7ED321',
-  background: '#F8F9FA',
-  white: '#FFFFFF',
-  text: '#2C3E50',
-  lightText: '#8E8E93',
-  border: '#E1E5E9',
-  danger: '#FF3B30',
-};
+import { COLORS, SIZES } from '../constants/theme';
+import BottomNavigation from '../components/BottomNavigation';
 
 const ProfileScreen = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
@@ -103,22 +95,22 @@ const ProfileScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PROFILE_COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={PROFILE_COLORS.primary} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
       {/* Curved Green Header */}
       <View style={styles.headerContainer}>
         <Svg height="200" width="100%" viewBox="0 0 400 200" style={styles.svgCurve}>
           <Path
             d="M0,0 L400,0 L400,120 Q400,160 360,180 Q200,220 40,180 Q0,160 0,120 Z"
-            fill={PROFILE_COLORS.primary}
+            fill={COLORS.primary}
           />
         </Svg>
         
@@ -174,7 +166,7 @@ const ProfileScreen = ({ navigation }) => {
                   value={formData.first_name}
                   onChangeText={(text) => setFormData({ ...formData, first_name: text })}
                   placeholder="Enter first name"
-                  placeholderTextColor={PROFILE_COLORS.lightText}
+                  placeholderTextColor={COLORS.textSecondary}
                 />
               ) : (
                 <Text style={styles.inputValue}>{userData?.first_name || 'Not set'}</Text>
@@ -190,7 +182,7 @@ const ProfileScreen = ({ navigation }) => {
                   value={formData.last_name}
                   onChangeText={(text) => setFormData({ ...formData, last_name: text })}
                   placeholder="Enter last name"
-                  placeholderTextColor={PROFILE_COLORS.lightText}
+                  placeholderTextColor={COLORS.textSecondary}
                 />
               ) : (
                 <Text style={styles.inputValue}>{userData?.last_name || 'Not set'}</Text>
@@ -269,25 +261,29 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        <View style={{ height: 20 }} />
       </ScrollView>
-    </View>
+
+      {/* Professional Bottom Navigation */}
+      <BottomNavigation navigation={navigation} currentRoute="Profile" />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PROFILE_COLORS.background,
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: PROFILE_COLORS.background,
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 16,
-    color: PROFILE_COLORS.lightText,
+    color: COLORS.textSecondary,
     fontSize: 16,
   },
   headerContainer: {
@@ -310,12 +306,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: PROFILE_COLORS.white,
+    color: COLORS.white,
     marginBottom: 8,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: PROFILE_COLORS.white,
+    color: COLORS.white,
     opacity: 0.9,
   },
   content: {
@@ -324,7 +320,7 @@ const styles = StyleSheet.create({
     marginTop: -40,
   },
   profileCard: {
-    backgroundColor: PROFILE_COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 20,
     padding: 24,
     marginBottom: 16,
@@ -345,7 +341,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: PROFILE_COLORS.primary,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -353,17 +349,17 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: PROFILE_COLORS.white,
+    color: COLORS.white,
   },
   fullName: {
     fontSize: 24,
     fontWeight: '600',
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   email: {
     fontSize: 16,
-    color: PROFILE_COLORS.lightText,
+    color: COLORS.textSecondary,
   },
   editSection: {
     marginTop: 8,
@@ -377,16 +373,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
   },
   editButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: PROFILE_COLORS.primary,
+    backgroundColor: COLORS.primary,
   },
   editButtonText: {
-    color: PROFILE_COLORS.white,
+    color: COLORS.white,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -396,21 +392,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: PROFILE_COLORS.border,
+    borderColor: COLORS.border,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    backgroundColor: PROFILE_COLORS.white,
+    backgroundColor: COLORS.white,
   },
   inputValue: {
     fontSize: 16,
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: '#F8F9FA',
@@ -432,21 +428,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   saveButton: {
-    backgroundColor: PROFILE_COLORS.primary,
+    backgroundColor: COLORS.primary,
     marginLeft: 8,
   },
   cancelButtonText: {
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   saveButtonText: {
-    color: PROFILE_COLORS.white,
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
   },
   card: {
-    backgroundColor: PROFILE_COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -462,7 +458,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     marginBottom: 16,
   },
   infoRow: {
@@ -476,15 +472,15 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: PROFILE_COLORS.lightText,
+    color: COLORS.textSecondary,
   },
   infoValue: {
     fontSize: 16,
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
     fontWeight: '500',
   },
   statusActive: {
-    color: PROFILE_COLORS.primary,
+    color: COLORS.primary,
   },
   settingItem: {
     flexDirection: 'row',
@@ -494,11 +490,11 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 16,
-    color: PROFILE_COLORS.text,
+    color: COLORS.textPrimary,
   },
   settingChevron: {
     fontSize: 20,
-    color: PROFILE_COLORS.lightText,
+    color: COLORS.textSecondary,
   },
   logoutButton: {
     alignItems: 'center',
@@ -506,7 +502,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 16,
-    color: PROFILE_COLORS.danger,
+    color: COLORS.error,
     fontWeight: '500',
   },
 });

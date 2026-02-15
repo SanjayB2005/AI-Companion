@@ -42,10 +42,22 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     try {
       await authAPI.login({ email, password });
+      console.log('✅ Login successful, navigating to Home');
       navigation.replace('Home');
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('Login Failed', error.response?.data?.detail || 'Please try again');
+      
+      let errorMessage = 'Invalid credentials. Please check your email and password.';
+      
+      if (error.detail) {
+        errorMessage = error.detail;
+      } else if (error.error) {
+        errorMessage = error.error;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }

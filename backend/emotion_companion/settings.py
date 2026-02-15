@@ -30,6 +30,9 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 # ALLOWED_HOSTS for development - hardcoded to avoid config issues
 ALLOWED_HOSTS = ['*']  # Allow all hosts in development - change for production
 
+# Allow connections from all IP addresses in development
+INTERNAL_IPS = ['127.0.0.1', 'localhost']
+
 
 # Application definition
 
@@ -198,15 +201,23 @@ SIMPLE_JWT = {
 
 
 # CORS Settings - Allow all origins in development
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+CORS_ALLOW_ALL_ORIGINS = True  # For development only - allows any origin
 
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:19000,http://localhost:19006,http://localhost:8081,http://10.0.2.2:19000',
-).split(',')
+# Backup specific origins (not used when CORS_ALLOW_ALL_ORIGINS is True)
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:19000',
+    'http://localhost:19006', 
+    'http://localhost:8081',
+    'http://10.0.2.2:8000',
+    'http://10.0.2.2:19000',
+    'http://127.0.0.1:19000',
+    'http://127.0.0.1:19006',
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow all headers and methods for development
+CORS_ALLOW_ALL_HEADERS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',

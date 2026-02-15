@@ -4,18 +4,32 @@ import { Platform } from 'react-native';
 
 // API Base URL - Auto-detect platform
 // Android Emulator: http://10.0.2.2:8000/api
-// iOS Simulator: http://localhost:8000/api
+// iOS Simulator: http://localhost:8000/api  
 // Web: http://localhost:8000/api
 // Physical Device: Use your computer's local IP
 
-// For physical device testing, get your IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
-const HOST_IP = '192.168.1.4'; // Your computer's actual IP address
+// Instructions for finding your IP:
+// Windows: Open Command Prompt and run: ipconfig
+// Mac/Linux: Open Terminal and run: ifconfig
+// Look for your computer's local network IP (usually starts with 192.168.x.x or 10.x.x.x)
 
-const BASE_URL = Platform.select({
-  android: `http://${HOST_IP}:8000/api`, // Try actual IP for Android (works for both emulator and physical device)
-  ios: 'http://localhost:8000/api',
-  default: 'http://localhost:8000/api', // web and others
-});
+const HOST_IP = '192.168.1.6'; // ⚠️ UPDATE THIS: Your computer's actual IP address
+
+// More flexible URL configuration
+const getBaseURL = () => {
+  if (Platform.OS === 'android') {
+    // Try actual IP first, fallback to emulator IP
+    return `http://${HOST_IP}:8000/api`;
+  } else if (Platform.OS === 'ios') {
+    // iOS simulator can use localhost
+    return 'http://localhost:8000/api';
+  } else {
+    // Web and other platforms
+    return 'http://localhost:8000/api';
+  }
+};
+
+const BASE_URL = getBaseURL();
 
 console.log('Platform:', Platform.OS);
 console.log('API Base URL:', BASE_URL);

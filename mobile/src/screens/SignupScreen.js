@@ -59,15 +59,40 @@ const SignupScreen = ({ navigation }) => {
     setLoading(true);
     try {
       await authAPI.register(formData);
+      console.log('✅ Registration successful, navigating to Home');
       navigation.replace('Home');
     } catch (error) {
       console.error('Signup error:', error);
-      const errorMessage = error.email?.[0] || 
-                          error.username?.[0] || 
-                          error.password?.[0] || 
-                          error.detail || 
-                          'Registration failed. Please try again.';
-      Alert.alert('Signup Failed', errorMessage);
+      
+      // Extract error messages from Django response
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.username) {
+        errorMessage = Array.isArray(error.username) 
+          ? error.username[0] 
+          : error.username;
+        // Make it more user-friendly
+        if (errorMessage.includes('already exists')) {
+          errorMessage = `Username "${username}" is already taken. Please choose a different username.`;
+        }
+      } else if (error.email) {
+        errorMessage = Array.isArray(error.email) 
+          ? error.email[0] 
+          : error.email;
+        if (errorMessage.includes('already exists')) {
+          errorMessage = `Email "${email}" is already registered. Please use a different email or try logging in.`;
+        }
+      } else if (error.password) {
+        errorMessage = Array.isArray(error.password) 
+          ? error.password[0] 
+          : error.password;
+      } else if (error.detail) {
+        errorMessage = error.detail;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
     }
