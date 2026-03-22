@@ -15,24 +15,64 @@ import BottomNavigation from '../components/BottomNavigation';
 const ActivityScreen = ({ navigation }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
 
-  // Mock emotion data
-  const emotionTracking = [
-    { emotion: 'Happy', count: 45, percentage: 35, color: COLORS.success },
-    { emotion: 'Calm', count: 38, percentage: 30, color: COLORS.secondary },
-    { emotion: 'Neutral', count: 25, percentage: 20, color: COLORS.info },
-    { emotion: 'Sad', count: 12, percentage: 10, color: COLORS.warning },
-    { emotion: 'Anxious', count: 6, percentage: 5, color: COLORS.error },
-  ];
+  const activityData = {
+    day: {
+      stats: { sessions: '3', time: '1.2h', streak: '12d', rating: '4.8' },
+      chartTitle: 'Today\'s Interactions',
+      chartData: [
+        { day: 'Morning', sessions: 1, duration: 20 },
+        { day: 'Noon', sessions: 1, duration: 15 },
+        { day: 'Evening', sessions: 1, duration: 40 },
+      ],
+      emotions: [
+        { emotion: 'Happy', count: 12, percentage: 60, color: COLORS.success },
+        { emotion: 'Calm', count: 5, percentage: 25, color: COLORS.secondary },
+        { emotion: 'Neutral', count: 3, percentage: 15, color: COLORS.info },
+      ],
+      totalInteractions: 20,
+    },
+    week: {
+      stats: { sessions: '27', time: '6.2h', streak: '12d', rating: '4.3' },
+      chartTitle: 'Weekly Sessions',
+      chartData: [
+        { day: 'Mon', sessions: 3, duration: 45 },
+        { day: 'Tue', sessions: 5, duration: 68 },
+        { day: 'Wed', sessions: 2, duration: 32 },
+        { day: 'Thu', sessions: 4, duration: 55 },
+        { day: 'Fri', sessions: 6, duration: 78 },
+        { day: 'Sat', sessions: 3, duration: 42 },
+        { day: 'Sun', sessions: 4, duration: 51 },
+      ],
+      emotions: [
+        { emotion: 'Happy', count: 45, percentage: 35, color: COLORS.success },
+        { emotion: 'Calm', count: 38, percentage: 30, color: COLORS.secondary },
+        { emotion: 'Neutral', count: 25, percentage: 20, color: COLORS.info },
+        { emotion: 'Sad', count: 12, percentage: 10, color: COLORS.warning },
+        { emotion: 'Anxious', count: 6, percentage: 5, color: COLORS.error },
+      ],
+      totalInteractions: 126,
+    },
+    month: {
+      stats: { sessions: '104', time: '28.5h', streak: '12d', rating: '4.5' },
+      chartTitle: 'Monthly Sessions',
+      chartData: [
+        { day: 'Wk 1', sessions: 24, duration: 320 },
+        { day: 'Wk 2', sessions: 32, duration: 415 },
+        { day: 'Wk 3', sessions: 18, duration: 240 },
+        { day: 'Wk 4', sessions: 30, duration: 390 },
+      ],
+      emotions: [
+        { emotion: 'Happy', count: 180, percentage: 40, color: COLORS.success },
+        { emotion: 'Calm', count: 135, percentage: 30, color: COLORS.secondary },
+        { emotion: 'Neutral', count: 67, percentage: 15, color: COLORS.info },
+        { emotion: 'Sad', count: 45, percentage: 10, color: COLORS.warning },
+        { emotion: 'Anxious', count: 23, percentage: 5, color: COLORS.error },
+      ],
+      totalInteractions: 450,
+    }
+  };
 
-  const weeklyActivity = [
-    { day: 'Mon', sessions: 3, duration: 45 },
-    { day: 'Tue', sessions: 5, duration: 68 },
-    { day: 'Wed', sessions: 2, duration: 32 },
-    { day: 'Thu', sessions: 4, duration: 55 },
-    { day: 'Fri', sessions: 6, duration: 78 },
-    { day: 'Sat', sessions: 3, duration: 42 },
-    { day: 'Sun', sessions: 4, duration: 51 },
-  ];
+  const currentData = activityData[selectedPeriod];
 
   const insights = [
     {
@@ -55,7 +95,7 @@ const ActivityScreen = ({ navigation }) => {
     },
   ];
 
-  const maxDuration = Math.max(...weeklyActivity.map(d => d.duration));
+  const maxDuration = Math.max(...currentData.chartData.map(d => d.duration));
 
   const StatCard = ({ label, value, change, icon }) => (
     <View style={styles.statCard}>
@@ -114,33 +154,32 @@ const ActivityScreen = ({ navigation }) => {
 
         {/* Stats Overview */}
         <View style={styles.statsGrid}>
-          <StatCard label="Sessions" value="27" change={15} icon="🎯" />
-          <StatCard label="Total Time" value="6.2h" change={8} icon="⏱️" />
-          <StatCard label="Streak" value="12d" change={20} icon="🔥" />
-          <StatCard label="Avg Rating" value="4.3" change={5} icon="⭐" />
+          <StatCard label="Sessions" value={currentData.stats.sessions} change={15} icon="🎯" />
+          <StatCard label="Total Time" value={currentData.stats.time} change={8} icon="⏱️" />
+          <StatCard label="Streak" value={currentData.stats.streak} change={20} icon="🔥" />
+          <StatCard label="Avg Rating" value={currentData.stats.rating} change={5} icon="⭐" />
         </View>
 
-        {/* Weekly Activity Chart */}
+        {/* Dynamic Activity Chart */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Weekly Sessions</Text>
+          <Text style={styles.cardTitle}>{currentData.chartTitle}</Text>
           <View style={styles.chart}>
-            {weeklyActivity.map((day, index) => (
+            {currentData.chartData.map((item, index) => (
               <View key={index} style={styles.chartBar}>
                 <View style={styles.barContainer}>
                   <View
                     style={[
                       styles.bar,
                       {
-                        height: `${(day.duration / maxDuration) * 100}%`,
-                        backgroundColor:
-                          day.day === 'Fri' ? COLORS.primary : COLORS.primaryLight,
+                        height: `${(item.duration / maxDuration) * 100}%`,
+                        backgroundColor: COLORS.primaryLight,
                       },
                     ]}
                   >
-                    <Text style={styles.barValue}>{day.sessions}</Text>
+                    <Text style={styles.barValue}>{item.sessions}</Text>
                   </View>
                 </View>
-                <Text style={styles.barLabel}>{day.day}</Text>
+                <Text style={styles.barLabel}>{item.day}</Text>
               </View>
             ))}
           </View>
@@ -149,10 +188,10 @@ const ActivityScreen = ({ navigation }) => {
         {/* Emotion Distribution */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Emotion Distribution</Text>
-          <Text style={styles.cardSubtitle}>Based on 126 interactions this week</Text>
+          <Text style={styles.cardSubtitle}>Based on {currentData.totalInteractions} interactions this {selectedPeriod}</Text>
           
           <View style={styles.emotionList}>
-            {emotionTracking.map((item, index) => (
+            {currentData.emotions.map((item, index) => (
               <View key={index} style={styles.emotionItem}>
                 <View style={styles.emotionInfo}>
                   <Text style={styles.emotionName}>{item.emotion}</Text>

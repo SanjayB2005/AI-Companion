@@ -10,7 +10,8 @@
       "bundleIdentifier": "com.emotioncompanion.app"
     },
     "android": {
-      "package": "com.emotioncompanion.app"
+      "package": "com.emotioncompanion.app",
+      "softwareKeyboardLayoutMode": "pan"
     }
   }
 }

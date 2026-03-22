@@ -12,25 +12,16 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { authAPI } from '../services/api';
+import { COLORS, SIZES } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
-
-// Design colors matching Arimo style
-const LOGIN_COLORS = {
-  primary: '#7ED321', // Bright green like Arimo
-  background: '#FFFFFF',
-  cardBackground: '#FFFFFF',
-  text: '#2C3E50',
-  textSecondary: '#7F8C8D',
-  inputBackground: '#F8F9FA',
-  inputBorder: '#E9ECEF',
-  shadow: 'rgba(0, 0, 0, 0.1)',
-};
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -65,9 +56,9 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={LOGIN_COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       
-      {/* Curved Green Background */}
+      {/* Curved Primary Background */}
       <View style={styles.topSection}>
         <Svg
           height={height * 0.4}
@@ -76,7 +67,7 @@ const LoginScreen = ({ navigation }) => {
           style={styles.waveSvg}>
           <Path
             d={`M0,0 L${width},0 L${width},${height * 0.25} Q${width * 0.5},${height * 0.35} 0,${height * 0.25} Z`}
-            fill={LOGIN_COLORS.primary}
+            fill={COLORS.primary}
           />
         </Svg>
         
@@ -100,7 +91,7 @@ const LoginScreen = ({ navigation }) => {
             <TextInput
               style={styles.input}
               placeholder="Email address"
-              placeholderTextColor={LOGIN_COLORS.textSecondary}
+              placeholderTextColor={COLORS.textSecondary}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -111,15 +102,28 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={LOGIN_COLORS.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordInputWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Password"
+                placeholderTextColor={COLORS.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity 
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={showPassword ? "eye" : "eye-off"} 
+                  size={24} 
+                  color={COLORS.textSecondary} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Continue Button */}
@@ -168,7 +172,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: LOGIN_COLORS.background,
+    backgroundColor: COLORS.background,
   },
   topSection: {
     position: 'absolute',
@@ -183,18 +187,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: height * 0.08,
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SIZES.lg,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: SIZES.h2,
     fontWeight: 'bold',
-    color: 'white',
+    color: COLORS.white,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: SIZES.sm,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: 'white',
+    fontSize: SIZES.body,
+    color: COLORS.white,
     opacity: 0.9,
     textAlign: 'center',
   },
@@ -205,16 +209,16 @@ const styles = StyleSheet.create({
   cardContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: SIZES.md,
+    paddingBottom: SIZES.lg,
     zIndex: 2,
   },
   card: {
-    backgroundColor: LOGIN_COLORS.cardBackground,
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    shadowColor: LOGIN_COLORS.shadow,
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZES.radiusXl,
+    paddingHorizontal: SIZES.lg,
+    paddingVertical: SIZES.xl,
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: -3,
@@ -224,97 +228,118 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: SIZES.h3,
     fontWeight: 'bold',
-    color: LOGIN_COLORS.text,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: SIZES.xs,
     lineHeight: 30,
   },
   subtitle: {
-    fontSize: 24,
+    fontSize: SIZES.h3,
     fontWeight: 'bold',
-    color: LOGIN_COLORS.text,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: SIZES.xl,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: SIZES.md,
   },
   input: {
-    backgroundColor: LOGIN_COLORS.inputBackground,
+    backgroundColor: COLORS.surfaceLight,
     borderWidth: 1,
-    borderColor: LOGIN_COLORS.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: LOGIN_COLORS.text,
+    borderColor: COLORS.border,
+    borderRadius: SIZES.inputRadius,
+    paddingHorizontal: SIZES.md,
+    paddingVertical: SIZES.md,
+    fontSize: SIZES.body,
+    color: COLORS.textPrimary,
+  },
+  passwordInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceLight,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZES.inputRadius,
+    paddingHorizontal: SIZES.md,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: SIZES.md,
+    fontSize: SIZES.body,
+    color: COLORS.textPrimary,
+  },
+  eyeIcon: {
+    paddingLeft: SIZES.sm,
+    paddingRight: SIZES.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   continueButton: {
-    backgroundColor: LOGIN_COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.md,
+    borderRadius: SIZES.inputRadius,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: SIZES.sm,
+    marginBottom: SIZES.xl,
   },
   buttonDisabled: {
-    backgroundColor: LOGIN_COLORS.textSecondary,
+    backgroundColor: COLORS.textMuted,
   },
   continueButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: COLORS.white,
+    fontSize: SIZES.body,
     fontWeight: '600',
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: SIZES.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: LOGIN_COLORS.inputBorder,
+    backgroundColor: COLORS.border,
   },
   dividerText: {
-    color: LOGIN_COLORS.textSecondary,
-    fontSize: 14,
-    paddingHorizontal: 16,
+    color: COLORS.textSecondary,
+    fontSize: SIZES.small,
+    paddingHorizontal: SIZES.md,
   },
   socialButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: LOGIN_COLORS.inputBackground,
+    backgroundColor: COLORS.surfaceLight,
     borderWidth: 1,
-    borderColor: LOGIN_COLORS.inputBorder,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderColor: COLORS.border,
+    paddingVertical: SIZES.md - 2,
+    borderRadius: SIZES.inputRadius,
+    marginBottom: SIZES.md,
   },
   socialIcon: {
-    fontSize: 18,
-    marginRight: 12,
+    fontSize: SIZES.h4,
+    marginRight: SIZES.md,
   },
   socialButtonText: {
-    color: LOGIN_COLORS.text,
-    fontSize: 16,
+    color: COLORS.textPrimary,
+    fontSize: SIZES.body,
     fontWeight: '500',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: SIZES.lg,
   },
   signupText: {
-    color: LOGIN_COLORS.textSecondary,
-    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontSize: SIZES.small,
   },
   signupLink: {
-    color: LOGIN_COLORS.text,
-    fontSize: 14,
+    color: COLORS.primary,
+    fontSize: SIZES.small,
     fontWeight: '600',
   },
 });

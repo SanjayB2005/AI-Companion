@@ -2,18 +2,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// API Base URL - Auto-detect platform
-// Android Emulator: http://10.0.2.2:8000/api
-// iOS Simulator: http://localhost:8000/api  
-// Web: http://localhost:8000/api
-// Physical Device: Use your computer's local IP
 
-// Instructions for finding your IP:
-// Windows: Open Command Prompt and run: ipconfig
-// Mac/Linux: Open Terminal and run: ifconfig
-// Look for your computer's local network IP (usually starts with 192.168.x.x or 10.x.x.x)
 
-const HOST_IP = '192.168.1.6'; // ⚠️ UPDATE THIS: Your computer's actual IP address
+const HOST_IP = '192.168.1.5'; 
 
 // More flexible URL configuration
 const getBaseURL = () => {

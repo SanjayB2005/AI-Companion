@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 import Svg, { Path } from 'react-native-svg';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VIDEO_WIDTH = 120;
@@ -18,6 +19,13 @@ const VIDEO_HEIGHT = 160;
 const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionData }) => {
   const pan = useRef(new Animated.ValueXY({ x: SCREEN_WIDTH - VIDEO_WIDTH - 20, y: 100 })).current;
   const [isDragging, setIsDragging] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    if (!permission?.granted && permission?.canAskAgain) {
+      requestPermission();
+    }
+  }, [permission]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -67,11 +75,18 @@ const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionD
       {...panResponder.panHandlers}
     >
       <View style={[styles.videoContainer, isDragging && styles.videoContainerDragging]}>
-        {/* Mock Video Display */}
+        {/* Video Display */}
         <View style={styles.videoDisplay}>
-          <View style={styles.faceOutline}>
-            <Text style={styles.faceEmoji}>😊</Text>
-          </View>
+          {permission && permission.granted ? (
+            <CameraView 
+              style={styles.camera} 
+              facing="front"
+            />
+          ) : (
+            <View style={styles.faceOutline}>
+              <Text style={styles.faceEmoji}>😊</Text>
+            </View>
+          )}
           
           {/* Emotion Indicator */}
           <View style={styles.emotionBadge}>
@@ -148,6 +163,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryDark,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  camera: {
+    width: '100%',
+    height: '100%',
   },
   faceOutline: {
     width: 70,
