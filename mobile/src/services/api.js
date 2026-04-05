@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 
 
-const HOST_IP = '192.168.1.5'; 
+const HOST_IP = '10.76.100.81'; 
 
 // More flexible URL configuration
 const getBaseURL = () => {
