@@ -1,10 +1,15 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
-import cv2
 from PIL import Image
-from mtcnn import MTCNN
 import pandas as pd
+
+from inference import (
+    RAF_DB_EMOTIONS,
+    detect_largest_face,
+    load_face_detector,
+    load_model,
+    predict_emotion,
+)
 
 # Must be the first Streamlit command
 st.set_page_config(
@@ -40,110 +45,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Constants
-RAF_DB_EMOTIONS = [
-    "Surprise",
-    "Fear",
-    "Disgust",
-    "Happiness",
-    "Sadness",
-    "Anger",
-    "Neutral",
-]
-
-
-@st.cache_resource
-def load_model(model_path):
-    return tf.keras.models.load_model(model_path)
-
-
-@st.cache_resource
-def load_face_detector():
-    return MTCNN()
-
-
-def preprocess_image(image, target_size=(100, 100)):
-    # Convert PIL to numpy
-    if isinstance(image, Image.Image):
-        image = np.array(image)
-
-    # Handle different image formats
-    if len(image.shape) == 2:  # Grayscale
-        image = np.stack([image, image, image], axis=-1)
-    elif len(image.shape) == 3:
-        if image.shape[2] == 4:  # RGBA
-            image = image[:, :, :3]
-        elif image.shape[2] == 1:  # Single channel
-            image = np.concatenate([image, image, image], axis=-1)
-
-    # Resize to target size
-    image = cv2.resize(image, target_size)
-
-    # Normalize to [0, 1]
-    image = image.astype(np.float32) / 255.0
-
-    # Add batch dimension
-    image = np.expand_dims(image, axis=0)
-
-    return image
-
-
-def detect_face(image, detector):
-    # Convert PIL to numpy
-    if isinstance(image, Image.Image):
-        image = np.array(image)
-
-    # Ensure RGB format for MTCNN
-    if len(image.shape) == 2:
-        rgb_image = np.stack([image, image, image], axis=-1)
-    elif len(image.shape) == 3:
-        if image.shape[2] == 3:
-            rgb_image = image.copy()
-        elif image.shape[2] == 4:
-            rgb_image = image[:, :, :3]
-        else:
-            return None
-    else:
-        return None
-
-    try:
-        # Detect faces
-        results = detector.detect_faces(rgb_image)
-
-        if results:
-            # Get the largest face
-            largest_face = max(results, key=lambda x: x["box"][2] * x["box"][3])
-            x, y, w, h = largest_face["box"]
-
-            # Add padding
-            padding = int(max(w, h) * 0.2)
-            x1 = max(0, x - padding)
-            y1 = max(0, y - padding)
-            x2 = min(rgb_image.shape[1], x + w + padding)
-            y2 = min(rgb_image.shape[0], y + h + padding)
-
-            # Extract face
-            face = rgb_image[y1:y2, x1:x2]
-            return face
-        
-        return None
-    
-    except Exception as e:
-        st.error(f"Error during face detection: {e}")
-        return None
-    
-
-def predict_emotion(model, image):
-    try:
-        predictions = model.predict(image, verbose=0)
-        predicted_class = np.argmax(predictions[0])
-        confidence = float(predictions[0][predicted_class])
-        return RAF_DB_EMOTIONS[predicted_class], confidence, predictions[0]
-    except Exception as e:
-        st.error(f"Prediction error: {e}")
-        return None, 0, None
-
 
 # Main app header
 st.markdown('<p class="main-header">🎭 Emotion Detection</p>', unsafe_allow_html=True)
@@ -223,18 +124,25 @@ if model_file:
                         
                         if use_face_detection:
                             detector = load_face_detector()
-                            face = detect_face(image, detector)
+                            face = detect_largest_face(image, detector=detector)
                             
                             if face is not None:
-                                processed_image = preprocess_image(face, target_size)
+                                processed_image = face
                                 face_detected = True
                             else:
                                 st.warning("⚠️ No face detected, using full image")
 
                         if processed_image is None:
-                            processed_image = preprocess_image(image, target_size)
+                            processed_image = image
 
-                        emotion, confidence, all_preds = predict_emotion(model, processed_image)
+                        try:
+                            prediction = predict_emotion(model, processed_image, target_size=target_size)
+                            emotion = prediction["emotion"]
+                            confidence = prediction["confidence"]
+                            all_preds = [prediction["probabilities"][e] for e in RAF_DB_EMOTIONS]
+                        except Exception as e:
+                            st.error(f"Prediction error: {e}")
+                            emotion, confidence, all_preds = None, 0, None
 
                         if emotion is not None:
                             # Display main result

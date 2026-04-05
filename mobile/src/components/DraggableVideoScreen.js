@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,21 +11,100 @@ import {
 import { COLORS, SIZES } from '../constants/theme';
 import Svg, { Path } from 'react-native-svg';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { emotionAPI } from '../services/api';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VIDEO_WIDTH = 120;
 const VIDEO_HEIGHT = 160;
 
-const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionData }) => {
+const DraggableVideoScreen = ({
+  isMinimized,
+  onToggleMinimize,
+  onClose,
+  emotionData,
+  emotionDetectionEnabled = true,
+  onEmotionDetected,
+}) => {
   const pan = useRef(new Animated.ValueXY({ x: SCREEN_WIDTH - VIDEO_WIDTH - 20, y: 100 })).current;
   const [isDragging, setIsDragging] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef(null);
+  const samplingIntervalRef = useRef(null);
+  const isProcessingRef = useRef(false);
+  const [samplingDelayMs, setSamplingDelayMs] = useState(2000);
 
   useEffect(() => {
     if (!permission?.granted && permission?.canAskAgain) {
       requestPermission();
     }
   }, [permission]);
+
+  const captureAndAnalyzeFrame = useCallback(async () => {
+    if (!cameraRef.current || isProcessingRef.current || !emotionDetectionEnabled) {
+      return;
+    }
+
+    try {
+      isProcessingRef.current = true;
+      const startedAt = Date.now();
+
+      const picture = await cameraRef.current.takePictureAsync({
+        base64: true,
+        quality: 0.35,
+        skipProcessing: true,
+      });
+
+      if (!picture?.base64) {
+        return;
+      }
+
+      const detection = await emotionAPI.detectFaceEmotion({
+        imageBase64: picture.base64,
+      });
+
+      if (detection?.face_detected && onEmotionDetected) {
+        onEmotionDetected({
+          emotion: detection.emotion,
+          confidence: detection.confidence,
+        });
+      }
+
+      const latency = Date.now() - startedAt;
+      if (latency > 2500) {
+        setSamplingDelayMs(5000);
+      } else if (latency > 1500) {
+        setSamplingDelayMs(3500);
+      } else {
+        setSamplingDelayMs(2000);
+      }
+    } catch (error) {
+      setSamplingDelayMs(5000);
+      console.error('Emotion detection frame failed:', error);
+    } finally {
+      isProcessingRef.current = false;
+    }
+  }, [emotionDetectionEnabled, onEmotionDetected]);
+
+  useEffect(() => {
+    if (!isMinimized || !permission?.granted || !emotionDetectionEnabled) {
+      if (samplingIntervalRef.current) {
+        clearInterval(samplingIntervalRef.current);
+        samplingIntervalRef.current = null;
+      }
+      return undefined;
+    }
+
+    samplingIntervalRef.current = setInterval(() => {
+      captureAndAnalyzeFrame();
+    }, samplingDelayMs);
+
+    return () => {
+      if (samplingIntervalRef.current) {
+        clearInterval(samplingIntervalRef.current);
+        samplingIntervalRef.current = null;
+      }
+    };
+  }, [isMinimized, permission?.granted, emotionDetectionEnabled, samplingDelayMs, captureAndAnalyzeFrame]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -79,6 +158,7 @@ const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionD
         <View style={styles.videoDisplay}>
           {permission && permission.granted ? (
             <CameraView 
+              ref={cameraRef}
               style={styles.camera} 
               facing="front"
             />

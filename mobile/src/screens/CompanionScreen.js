@@ -11,13 +11,16 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av';
 import { COLORS, SIZES } from '../constants/theme';
 import Svg, { Path, Circle } from 'react-native-svg';
 import VoiceAnimationWave from '../components/VoiceAnimationWave';
 import DraggableVideoScreen from '../components/DraggableVideoScreen';
 import SettingsModal from '../components/SettingsModal';
+import { companionAPI } from '../services/api';
 
 const CompanionScreen = ({ navigation, route }) => {
   const { companionName = 'MindBuilder' } = route?.params || {};
@@ -33,9 +36,12 @@ const CompanionScreen = ({ navigation, route }) => {
     },
   ]);
   const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [playbackSound, setPlaybackSound] = useState(null);
   const [isVideoMinimized, setIsVideoMinimized] = useState(false);
   const [detectedEmotion, setDetectedEmotion] = useState({ emotion: 'Neutral', confidence: 0 });
   const [loading, setLoading] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState(null);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [settings, setSettings] = useState({
     audioEnabled: true,
@@ -89,29 +95,6 @@ const CompanionScreen = ({ navigation, route }) => {
     }
   };
 
-  const mockAIResponses = [
-    {
-      texts: ["I understand how you're feeling. It's completely normal to have these emotions.", "Tell me more about what's on your mind."],
-      emotion: 'empathetic',
-    },
-    {
-      texts: ["That sounds challenging. I'm here to support you through this.", "How long have you been feeling this way?"],
-      emotion: 'supportive',
-    },
-    {
-      texts: ["That's wonderful! I can sense your positive energy.", "What's making you feel so good today?"],
-      emotion: 'happy',
-    },
-    {
-      texts: ["I hear you. Sometimes it helps to talk about these things.", "Would you like to explore this feeling together?"],
-      emotion: 'understanding',
-    },
-    {
-      texts: ["Your feelings are valid. Let's work through this step by step.", "What would make you feel better right now?"],
-      emotion: 'caring',
-    },
-  ];
-
   const mockEmotions = [
     { emotion: 'Happy', confidence: 0.85 },
     { emotion: 'Calm', confidence: 0.72 },
@@ -123,9 +106,11 @@ const CompanionScreen = ({ navigation, route }) => {
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
+    const outgoingText = message.trim();
+
     const userMessage = {
       id: Date.now().toString(),
-      text: message,
+      text: outgoingText,
       sender: 'user',
       timestamp: new Date(),
       detectedEmotion: detectedEmotion.emotion,
@@ -135,81 +120,238 @@ const CompanionScreen = ({ navigation, route }) => {
     setMessage('');
     setLoading(true);
 
-    // Simulate emotion detection from text
-    const randomEmotion = mockEmotions[Math.floor(Math.random() * mockEmotions.length)];
-    setDetectedEmotion(randomEmotion);
-
-    // Simulate AI response with delay based on settings
-    const delays = { fast: 500, normal: 1200, thoughtful: 2000 };
-    const delay = delays[settings.responseSpeed] || 1200;
-
-    setTimeout(() => {
-      const responseData = mockAIResponses[Math.floor(Math.random() * mockAIResponses.length)];
-      const responses = responseData.texts;
-      
-      responses.forEach((text, index) => {
-        setTimeout(() => {
-          const aiResponse = {
-            id: (Date.now() + index).toString(),
-            text: text,
-            sender: 'ai',
-            timestamp: new Date(),
-            aiEmotion: responseData.emotion,
-          };
-          setMessages(prev => [...prev, aiResponse]);
-          if (index === responses.length - 1) {
-            setLoading(false);
-          }
-        }, index * 800);
+    try {
+      const data = await companionAPI.sendTextMessage({
+        text: outgoingText,
+        sessionId: chatSessionId,
       });
-    }, delay);
+
+      if (data?.session_id && !chatSessionId) {
+        setChatSessionId(data.session_id);
+      }
+
+      if (data?.detected_emotion) {
+        setDetectedEmotion({
+          emotion: data.detected_emotion.emotion || 'Neutral',
+          confidence: data.detected_emotion.confidence || 0,
+        });
+      }
+
+      const aiResponse = {
+        id: data?.ai_message?.id ? String(data.ai_message.id) : (Date.now() + 1).toString(),
+        text: data?.ai_message?.text || "I'm here with you. Tell me more.",
+        sender: 'ai',
+        timestamp: new Date(),
+        aiEmotion: data?.ai_message?.ai_emotion || 'empathetic',
+      };
+      setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Text chat API error:', error);
+      const fallback = {
+        id: (Date.now() + 1).toString(),
+        text: "I couldn't reach the companion service right now. Please try again in a moment.",
+        sender: 'ai',
+        timestamp: new Date(),
+        aiEmotion: 'supportive',
+      };
+      setMessages(prev => [...prev, fallback]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleVoiceRecording = () => {
+  const playAssistantAudio = async (audioUrl) => {
+    if (!audioUrl) {
+      return;
+    }
+
+    try {
+      if (playbackSound) {
+        await playbackSound.unloadAsync();
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true }
+      );
+      setPlaybackSound(sound);
+    } catch (error) {
+      console.error('Audio playback error:', error);
+    }
+  };
+
+  const processRecordedVoiceMessage = async (audioUri) => {
+    if (!audioUri) {
+      return;
+    }
+
+    const provisionalMessageId = Date.now().toString();
+
+    setMessages(prev => [
+      ...prev,
+      {
+        id: provisionalMessageId,
+        text: '🎤 Processing voice message... ',
+        sender: 'user',
+        timestamp: new Date(),
+        isVoice: true,
+      },
+    ]);
+
+    setLoading(true);
+    try {
+      const data = await companionAPI.sendVoiceMessage({
+        audioUri,
+        sessionId: chatSessionId,
+      });
+
+      if (data?.session_id && !chatSessionId) {
+        setChatSessionId(data.session_id);
+      }
+
+      if (data?.detected_emotion) {
+        setDetectedEmotion({
+          emotion: data.detected_emotion.emotion || 'Neutral',
+          confidence: data.detected_emotion.confidence || 0,
+        });
+      }
+
+      setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id !== provisionalMessageId) {
+            return msg;
+          }
+
+          return {
+            ...msg,
+            text: data?.transcript ? `🎤 ${data.transcript}` : '🎤 Voice message',
+            detectedEmotion: data?.detected_emotion?.emotion || msg.detectedEmotion,
+          };
+        })
+      );
+
+      const aiResponse = {
+        id: data?.ai_message?.id ? String(data.ai_message.id) : (Date.now() + 1).toString(),
+        text: data?.ai_message?.text || "I'm here with you. Tell me more.",
+        sender: 'ai',
+        timestamp: new Date(),
+        aiEmotion: data?.ai_message?.ai_emotion || 'empathetic',
+      };
+      setMessages(prev => [...prev, aiResponse]);
+
+      if (data?.tts_audio_url) {
+        await playAssistantAudio(data.tts_audio_url);
+      }
+
+      if (data?.tts_error) {
+        Alert.alert('Voice output unavailable', data.tts_error);
+      }
+    } catch (error) {
+      console.error('Voice chat API error:', error);
+      setMessages(prev =>
+        prev.map(msg => {
+          if (msg.id !== provisionalMessageId) {
+            return msg;
+          }
+
+          return {
+            ...msg,
+            text: '🎤 Voice message failed to process',
+          };
+        })
+      );
+
+      const fallback = {
+        id: (Date.now() + 1).toString(),
+        text: "I couldn't process your voice message right now. Please try again.",
+        sender: 'ai',
+        timestamp: new Date(),
+        aiEmotion: 'supportive',
+      };
+      setMessages(prev => [...prev, fallback]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startVoiceRecording = async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Microphone permission required', 'Please enable microphone permission to send voice messages.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(newRecording);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Start recording error:', error);
+      Alert.alert('Recording failed', 'Could not start voice recording.');
+    }
+  };
+
+  const stopVoiceRecording = async () => {
+    if (!recording) {
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const audioUri = recording.getURI();
+      setRecording(null);
+      setIsRecording(false);
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      await processRecordedVoiceMessage(audioUri);
+    } catch (error) {
+      console.error('Stop recording error:', error);
+      setRecording(null);
+      setIsRecording(false);
+      Alert.alert('Recording failed', 'Could not finish voice recording.');
+    }
+  };
+
+  const toggleVoiceRecording = async () => {
     if (!settings.audioEnabled) {
       return;
     }
 
-    setIsRecording(!isRecording);
-    
-    if (!isRecording) {
-      // Start recording - simulate voice emotion detection
-      const randomEmotion = mockEmotions[Math.floor(Math.random() * mockEmotions.length)];
-      setDetectedEmotion(randomEmotion);
-      
-      // Simulate processing after 3 seconds
-      setTimeout(() => {
-        setIsRecording(false);
-        
-        // Add voice message to chat
-        const voiceMessage = {
-          id: Date.now().toString(),
-          text: '🎤 Voice message (emotion detected: ' + randomEmotion.emotion + ')',
-          sender: 'user',
-          timestamp: new Date(),
-          isVoice: true,
-          detectedEmotion: randomEmotion.emotion,
-        };
-        
-        setMessages(prev => [...prev, voiceMessage]);
-        
-        // Trigger AI response
-        setLoading(true);
-        setTimeout(() => {
-          const responseData = mockAIResponses[Math.floor(Math.random() * mockAIResponses.length)];
-          const aiResponse = {
-            id: (Date.now() + 1).toString(),
-            text: responseData.texts[0],
-            sender: 'ai',
-            timestamp: new Date(),
-            aiEmotion: responseData.emotion,
-          };
-          setMessages(prev => [...prev, aiResponse]);
-          setLoading(false);
-        }, 1000);
-      }, 3000);
+    if (isRecording) {
+      await stopVoiceRecording();
+    } else {
+      await startVoiceRecording();
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (playbackSound) {
+        playbackSound.unloadAsync();
+      }
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, [playbackSound, recording]);
 
   const toggleVideoMode = () => {
     if (!settings.videoEnabled) {
@@ -520,6 +662,8 @@ const CompanionScreen = ({ navigation, route }) => {
         onToggleMinimize={() => setIsVideoMinimized(false)}
         onClose={closeVideo}
         emotionData={detectedEmotion}
+        emotionDetectionEnabled={settings.emotionDetection}
+        onEmotionDetected={(emotion) => setDetectedEmotion(emotion)}
       />
 
       {/* Settings Modal */}

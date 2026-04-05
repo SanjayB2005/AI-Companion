@@ -51,7 +51,27 @@ INSTALLED_APPS = [
     
     # Local apps
     'users',
+    'emotions',
 ]
+
+EMOTION_MODEL_PATH = config(
+    'EMOTION_MODEL_PATH',
+    default=str((BASE_DIR.parent / 'EmotionDetector' / 'emotion_model.keras').resolve()),
+)
+
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
+WHISPER_MODEL_SIZE = config('WHISPER_MODEL_SIZE', default='base')
+WHISPER_DEVICE = config('WHISPER_DEVICE', default='cpu')
+WHISPER_COMPUTE_TYPE = config('WHISPER_COMPUTE_TYPE', default='int8')
+HF_TOKEN = config('HF_TOKEN', default='')
+HF_HUB_DISABLE_SYMLINKS_WARNING = config(
+    'HF_HUB_DISABLE_SYMLINKS_WARNING',
+    default=True,
+    cast=bool,
+)
+TTS_RATE = config('TTS_RATE', default=180, cast=int)
+TTS_VOLUME = config('TTS_VOLUME', default=1.0, cast=float)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

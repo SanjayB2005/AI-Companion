@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 
 
-const HOST_IP = '10.76.100.81'; 
+const HOST_IP = '192.168.1.5'; 
 
 // More flexible URL configuration
 const getBaseURL = () => {
@@ -299,6 +299,71 @@ export const authAPI = {
       return response.data;
     } catch (error) {
       console.error('❌ Password reset confirmation failed:', error.message);
+      throw error.response?.data || error;
+    }
+  },
+};
+
+export const emotionAPI = {
+  detectFaceEmotion: async ({ imageBase64 }) => {
+    try {
+      const response = await api.post('/emotions/detect-face/', {
+        image_base64: imageBase64,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+};
+
+export const companionAPI = {
+  sendTextMessage: async ({ text, sessionId }) => {
+    try {
+      const payload = { text };
+      if (sessionId) {
+        payload.session_id = sessionId;
+      }
+      const response = await api.post('/emotions/chat/text/', payload);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getChatHistory: async ({ sessionId } = {}) => {
+    try {
+      const params = {};
+      if (sessionId) {
+        params.session_id = sessionId;
+      }
+      const response = await api.get('/emotions/chat/history/', { params });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  sendVoiceMessage: async ({ audioUri, sessionId }) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', {
+        uri: audioUri,
+        name: `voice_${Date.now()}.m4a`,
+        type: 'audio/m4a',
+      });
+
+      if (sessionId) {
+        formData.append('session_id', String(sessionId));
+      }
+
+      const response = await api.post('/emotions/chat/voice/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
       throw error.response?.data || error;
     }
   },
