@@ -16,9 +16,19 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const VIDEO_WIDTH = 120;
 const VIDEO_HEIGHT = 160;
 
-const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionData }) => {
+const DraggableVideoScreen = ({
+  isMinimized,
+  onToggleMinimize,
+  onClose,
+  emotionData,
+  onFrameCaptured,
+  captureEnabled = true,
+  captureIntervalMs = 600,
+}) => {
   const pan = useRef(new Animated.ValueXY({ x: SCREEN_WIDTH - VIDEO_WIDTH - 20, y: 100 })).current;
+  const cameraRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const captureInFlightRef = useRef(false);
   const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
@@ -26,6 +36,46 @@ const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionD
       requestPermission();
     }
   }, [permission]);
+
+  useEffect(() => {
+    if (!isMinimized || !captureEnabled || !permission?.granted || !onFrameCaptured) {
+      return undefined;
+    }
+
+    const captureFrame = async () => {
+      if (captureInFlightRef.current || !cameraRef.current) {
+        return;
+      }
+
+      captureInFlightRef.current = true;
+      try {
+        const picture = await cameraRef.current.takePictureAsync({
+          base64: true,
+          quality: 0.35,
+          skipProcessing: true,
+          shutterSound: false,
+        });
+
+        if (picture?.base64) {
+          await onFrameCaptured(picture.base64);
+        }
+      } catch (error) {
+        console.error('Error capturing camera frame:', error);
+      } finally {
+        captureInFlightRef.current = false;
+      }
+    };
+
+    captureFrame();
+    const intervalId = setInterval(captureFrame, Math.max(300, captureIntervalMs));
+    return () => clearInterval(intervalId);
+  }, [
+    isMinimized,
+    captureEnabled,
+    permission?.granted,
+    onFrameCaptured,
+    captureIntervalMs,
+  ]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -79,6 +129,7 @@ const DraggableVideoScreen = ({ isMinimized, onToggleMinimize, onClose, emotionD
         <View style={styles.videoDisplay}>
           {permission && permission.granted ? (
             <CameraView 
+              ref={cameraRef}
               style={styles.camera} 
               facing="front"
             />

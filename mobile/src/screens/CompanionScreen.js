@@ -18,6 +18,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import VoiceAnimationWave from '../components/VoiceAnimationWave';
 import DraggableVideoScreen from '../components/DraggableVideoScreen';
 import SettingsModal from '../components/SettingsModal';
+import { emotionAPI } from '../services/api';
 
 const CompanionScreen = ({ navigation, route }) => {
   const { companionName = 'MindBuilder' } = route?.params || {};
@@ -37,6 +38,8 @@ const CompanionScreen = ({ navigation, route }) => {
   const [detectedEmotion, setDetectedEmotion] = useState({ emotion: 'Neutral', confidence: 0 });
   const [loading, setLoading] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [emotionSessionId, setEmotionSessionId] = useState(null);
+  const [lastDetectionAt, setLastDetectionAt] = useState(null);
   const [settings, setSettings] = useState({
     audioEnabled: true,
     videoEnabled: true,
@@ -47,6 +50,8 @@ const CompanionScreen = ({ navigation, route }) => {
   });
   const scrollViewRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const sessionIdRef = useRef(null);
+  const detectionInFlightRef = useRef(false);
 
   useEffect(() => {
     loadSettings();
@@ -72,6 +77,30 @@ const CompanionScreen = ({ navigation, route }) => {
         }),
       ])
     ).start();
+  }, []);
+
+  useEffect(() => {
+    const startSession = async () => {
+      try {
+        const response = await emotionAPI.startSession();
+        const id = response?.session?.id || null;
+        sessionIdRef.current = id;
+        setEmotionSessionId(id);
+      } catch (error) {
+        console.error('Error starting emotion session:', error);
+      }
+    };
+
+    startSession();
+
+    return () => {
+      const currentSessionId = sessionIdRef.current;
+      if (currentSessionId) {
+        emotionAPI.endSession(currentSessionId).catch((error) => {
+          console.error('Error ending emotion session:', error);
+        });
+      }
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -120,6 +149,30 @@ const CompanionScreen = ({ navigation, route }) => {
     { emotion: 'Concerned', confidence: 0.63 },
   ];
 
+  const detectEmotionFromFrame = async (frameBase64) => {
+    if (!settings.emotionDetection || detectionInFlightRef.current) {
+      return;
+    }
+
+    detectionInFlightRef.current = true;
+    try {
+      const response = await emotionAPI.detectFacialEmotion(frameBase64, emotionSessionId);
+      const detection = response?.detection;
+
+      if (detection?.emotion) {
+        setDetectedEmotion({
+          emotion: detection.emotion,
+          confidence: Number(detection.confidence || 0),
+        });
+        setLastDetectionAt(new Date());
+      }
+    } catch (error) {
+      console.error('Facial emotion detection failed:', error);
+    } finally {
+      detectionInFlightRef.current = false;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
@@ -129,15 +182,12 @@ const CompanionScreen = ({ navigation, route }) => {
       sender: 'user',
       timestamp: new Date(),
       detectedEmotion: detectedEmotion.emotion,
+      sessionId: emotionSessionId,
     };
 
     setMessages(prev => [...prev, userMessage]);
     setMessage('');
     setLoading(true);
-
-    // Simulate emotion detection from text
-    const randomEmotion = mockEmotions[Math.floor(Math.random() * mockEmotions.length)];
-    setDetectedEmotion(randomEmotion);
 
     // Simulate AI response with delay based on settings
     const delays = { fast: 500, normal: 1200, thoughtful: 2000 };
@@ -338,6 +388,14 @@ const CompanionScreen = ({ navigation, route }) => {
           <Text style={styles.emotionBarText}>
             Detected: <Text style={styles.emotionBarEmoji}>{detectedEmotion.emotion}</Text>
           </Text>
+          {lastDetectionAt && (
+            <Text style={styles.detectedAtText}>
+              {lastDetectionAt.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          )}
           <View style={styles.confidenceBadge}>
             <Text style={styles.confidenceText}>{Math.round(detectedEmotion.confidence * 100)}%</Text>
           </View>
@@ -517,9 +575,12 @@ const CompanionScreen = ({ navigation, route }) => {
       {/* Draggable Video Screen */}
       <DraggableVideoScreen
         isMinimized={isVideoMinimized}
-        onToggleMinimize={() => setIsVideoMinimized(false)}
+        onToggleMinimize={toggleVideoMode}
         onClose={closeVideo}
         emotionData={detectedEmotion}
+        onFrameCaptured={detectEmotionFromFrame}
+        captureEnabled={settings.videoEnabled && settings.emotionDetection}
+        captureIntervalMs={600}
       />
 
       {/* Settings Modal */}
@@ -634,6 +695,10 @@ const styles = StyleSheet.create({
     fontSize: SIZES.small,
     color: COLORS.textSecondary,
     fontWeight: '500',
+  },
+  detectedAtText: {
+    fontSize: SIZES.tiny,
+    color: COLORS.textMuted,
   },
   emotionBarEmoji: {
     color: COLORS.textPrimary,

@@ -19,6 +19,7 @@ urlpatterns = [
     
     # API endpoints
     path('api/auth/', include('users.urls')),
+    path('api/emotions/', include('emotions.urls')),
     
     # JWT Token endpoints
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

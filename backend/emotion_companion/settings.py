@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'users',
+    'emotions',
 ]
 
 MIDDLEWARE = [
@@ -238,3 +239,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+
+# Emotion service integration
+EMOTION_SERVICE_URL = config('EMOTION_SERVICE_URL', default='http://localhost:8001')
+EMOTION_SERVICE_TIMEOUT = config('EMOTION_SERVICE_TIMEOUT', default=15, cast=int)

@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 
 
-const HOST_IP = '10.76.100.81'; 
+const HOST_IP = '192.168.1.4'; 
 
 // More flexible URL configuration
 const getBaseURL = () => {
@@ -299,6 +299,49 @@ export const authAPI = {
       return response.data;
     } catch (error) {
       console.error('❌ Password reset confirmation failed:', error.message);
+      throw error.response?.data || error;
+    }
+  },
+};
+
+// Emotion API functions
+export const emotionAPI = {
+  startSession: async () => {
+    try {
+      const response = await api.post('/emotions/sessions/start/');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  endSession: async (sessionId) => {
+    try {
+      const response = await api.post(`/emotions/sessions/${sessionId}/end/`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  listSessions: async () => {
+    try {
+      const response = await api.get('/emotions/sessions/');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  detectFacialEmotion: async (frameBase64, sessionId = null) => {
+    try {
+      const payload = { frame_base64: frameBase64 };
+      if (sessionId) {
+        payload.session_id = sessionId;
+      }
+      const response = await api.post('/emotions/detect/facial/', payload);
+      return response.data;
+    } catch (error) {
       throw error.response?.data || error;
     }
   },
