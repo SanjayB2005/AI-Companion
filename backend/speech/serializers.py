@@ -37,6 +37,8 @@ class EmotionTextSerializer(serializers.Serializer):
 class GenerateSerializer(serializers.Serializer):
     user_message = serializers.CharField()
     detected_emotion = serializers.CharField()
+    facial_emotion = serializers.CharField(required=False, allow_blank=True)
+    audio_emotion = serializers.CharField(required=False, allow_blank=True)
     include_audio = serializers.BooleanField(default=False)
 
 
@@ -50,3 +52,4 @@ class RealtimeTestSerializer(serializers.Serializer):
     format = serializers.CharField(default='webm')
     include_audio = serializers.BooleanField(default=False)
     session_id = serializers.IntegerField(required=False)
+    facial_emotion = serializers.CharField(required=False, allow_blank=True)

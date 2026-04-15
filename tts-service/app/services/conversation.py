@@ -40,6 +40,17 @@ EMOTION_PROMPTS = {
     "neutral": "Respond naturally and helpfully.",
 }
 
+TONE_PROMPTS = {
+    "empathetic": "Respond with a gentle, compassionate, and validating tone.",
+    "supportive": "Respond with steady encouragement and practical support.",
+    "calm": "Respond with a calm, grounded, and reassuring tone.",
+    "curious": "Respond with a curious, thoughtful, and explanatory tone.",
+    "celebratory": "Respond with warm, upbeat, and positive energy.",
+    "reassuring": "Respond with a soothing, reassuring, and safe tone.",
+    "attentive": "Respond with careful attention and a balanced tone.",
+    "neutral": "Respond naturally and helpfully.",
+}
+
 
 @dataclass
 class ConversationResult:
@@ -47,6 +58,8 @@ class ConversationResult:
     ai_text: str
     ai_audio_path: Optional[Path] = None
     detected_emotion: str = "neutral"
+    response_tone: str = "neutral"
+    tone_reason: str = ""
     response_source: str = "llm"
 
 
@@ -56,18 +69,43 @@ class ConversationService:
         self.tts = tts
         self.emotion_detector = EmotionDetector()
 
-    def respond(self, user_text: str, with_voice: bool) -> ConversationResult:
+    def respond(
+        self,
+        user_text: str,
+        with_voice: bool,
+        tone_hint: str | None = None,
+        tone_reason: str | None = None,
+        facial_emotion: str | None = None,
+        audio_emotion: str | None = None,
+    ) -> ConversationResult:
         # Detect emotion from user input
         detected_emotion = self.emotion_detector.detect(user_text)
         emotion_context = EMOTION_PROMPTS.get(detected_emotion, EMOTION_PROMPTS["neutral"])
+        response_tone = (tone_hint or self._tone_from_emotion(detected_emotion)).strip().lower()
+        tone_context = TONE_PROMPTS.get(response_tone, TONE_PROMPTS["neutral"])
 
-        # Build prompt with Kartie persona, emotion awareness, and user message
-        prompt = (
-            f"{ROCKY_SYSTEM_PROMPT}\n\n"
-            f"{emotion_context}\n\n"
-            f"User: {user_text}\n"
-            f"Rocky:"
-        )
+        fusion_context = []
+        if facial_emotion:
+            fusion_context.append(f"Facial expression: {facial_emotion}")
+        if audio_emotion:
+            fusion_context.append(f"Audio emotion: {audio_emotion}")
+        if tone_reason:
+            fusion_context.append(f"Fusion reason: {tone_reason}")
+
+        # Build prompt with Rocky persona, tone guidance, and user message.
+        prompt_parts = [
+            ROCKY_SYSTEM_PROMPT,
+            f"Response tone: {tone_context}",
+            "Priority rule: favor the meaning of the text when face or voice cues conflict.",
+        ]
+        if fusion_context:
+            prompt_parts.append(" | ".join(fusion_context))
+        prompt_parts.extend([
+            emotion_context,
+            f"User: {user_text}",
+            "Rocky:",
+        ])
+        prompt = "\n\n".join(prompt_parts)
         response_source = "llm"
         try:
             ai_text = self.llm.generate(prompt)
@@ -85,8 +123,20 @@ class ConversationService:
             ai_text=ai_text,
             ai_audio_path=audio_path,
             detected_emotion=detected_emotion,
+            response_tone=response_tone,
+            tone_reason=tone_reason or "",
             response_source=response_source,
         )
+
+    @staticmethod
+    def _tone_from_emotion(detected_emotion: str) -> str:
+        mapping = {
+            "sad": "empathetic",
+            "happy": "celebratory",
+            "curious": "curious",
+            "neutral": "neutral",
+        }
+        return mapping.get(detected_emotion, "neutral")
 
     @staticmethod
     def _local_fallback_reply(user_text: str, detected_emotion: str) -> str:

@@ -6,6 +6,7 @@ from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import SpeechSession
+from .services import resolve_response_tone
 
 User = get_user_model()
 
@@ -54,3 +55,13 @@ class SpeechApiTests(APITestCase):
 
         session.refresh_from_db()
         self.assertEqual(session.last_detected_emotion, 'Concerned')
+
+    def test_response_tone_prefers_grief_text_over_conflicting_cues(self):
+        result = resolve_response_tone(
+            'my dog died!!',
+            facial_emotion='happy',
+            audio_emotion='happy',
+        )
+
+        self.assertEqual(result['response_tone'], 'empathetic')
+        self.assertIn('grief', result['tone_reason'].lower())

@@ -167,7 +167,7 @@ const CompanionScreen = ({ navigation, route }) => {
 
       const welcomeText = response?.response_text || response?.ai_text;
       if (welcomeText) {
-        addAIMessage(welcomeText, response?.detected_emotion || 'welcoming');
+        addAIMessage(welcomeText, response?.response_tone || response?.detected_emotion || 'welcoming');
         return;
       }
 
@@ -252,13 +252,17 @@ const CompanionScreen = ({ navigation, route }) => {
     });
   };
 
-  const requestAIResponse = async (userText) => {
+  const requestAIResponse = async (userText, options = {}) => {
     setLoading(true);
     try {
+      const facialEmotion = options.facialEmotion || detectedEmotion.emotion || 'Neutral';
+      const audioEmotion = options.audioEmotion || 'neutral';
+
       const response = await speechAPI.generateResponse(
         userText,
-        detectedEmotion.emotion || 'Neutral',
-        settings.audioEnabled
+        facialEmotion,
+        settings.audioEnabled,
+        audioEmotion
       );
 
       console.log('AI response payload:', response);
@@ -268,7 +272,7 @@ const CompanionScreen = ({ navigation, route }) => {
         throw new Error('TTS service returned empty ai text');
       }
 
-      const aiEmotion = response?.detected_emotion || 'neutral';
+      const aiEmotion = response?.response_tone || response?.detected_emotion || 'neutral';
 
       addAIMessage(aiText, aiEmotion);
 
@@ -323,7 +327,9 @@ const CompanionScreen = ({ navigation, route }) => {
     setMessages(prev => [...prev, userMessage]);
     setMessage('');
 
-    await requestAIResponse(userText);
+    await requestAIResponse(userText, {
+      facialEmotion: detectedEmotion.emotion || 'Neutral',
+    });
   };
 
   const toggleVoiceRecording = async () => {
@@ -405,7 +411,10 @@ const CompanionScreen = ({ navigation, route }) => {
         },
       ]);
 
-      await requestAIResponse(transcript);
+      await requestAIResponse(transcript, {
+        facialEmotion: detectedEmotion.emotion || 'Neutral',
+        audioEmotion: voiceEmotion,
+      });
     } catch (error) {
       console.error('Voice processing failed:', error);
       setLoading(false);
@@ -441,6 +450,12 @@ const CompanionScreen = ({ navigation, route }) => {
       welcoming: COLORS.secondary,
       empathetic: COLORS.info,
       supportive: COLORS.primary,
+      calming: COLORS.secondary,
+      calm: COLORS.secondary,
+      reassuring: COLORS.info,
+      curious: COLORS.accent,
+      celebratory: COLORS.success,
+      attentive: COLORS.textSecondary,
       happy: COLORS.success,
       understanding: COLORS.secondary,
       caring: COLORS.accent,

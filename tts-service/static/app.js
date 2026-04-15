@@ -71,8 +71,8 @@ async function sendText() {
     if (!res.ok) throw new Error(data.detail || "Request failed");
 
     addLine("ai", data.ai_text);
-    if (data.detected_emotion) {
-      showEmotion(data.detected_emotion);
+    if (data.response_tone || data.detected_emotion) {
+      showEmotion(data.response_tone || data.detected_emotion);
     }
     if (data.ai_audio_url) {
       audioPlayer.src = data.ai_audio_url;
@@ -289,8 +289,8 @@ async function sendSpeech(blob) {
 
     addLine("what i said", data.user_text);
     addLine("ai", data.ai_text);
-    if (data.detected_emotion) {
-      showEmotion(data.detected_emotion);
+    if (data.response_tone || data.detected_emotion) {
+      showEmotion(data.response_tone || data.detected_emotion);
     }
     if (data.ai_audio_url) {
       if (sessionActive && withVoiceEl.checked) {

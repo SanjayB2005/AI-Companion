@@ -24,7 +24,14 @@ def health(ollama=Depends(get_ollama_client)) -> dict:
 @router.post("/chat/text", response_model=ChatResponse)
 def chat_text(payload: ChatTextRequest, conversation=Depends(get_conversation_service)) -> ChatResponse:
     try:
-        result = conversation.respond(payload.message, payload.with_voice)
+        result = conversation.respond(
+            payload.message,
+            payload.with_voice,
+            tone_hint=payload.tone_hint,
+            tone_reason=payload.tone_reason,
+            facial_emotion=payload.facial_emotion,
+            audio_emotion=payload.audio_emotion,
+        )
     except LLMServiceError as exc:
         raise HTTPException(
             status_code=503,
@@ -42,6 +49,8 @@ def chat_text(payload: ChatTextRequest, conversation=Depends(get_conversation_se
         ai_text=result.ai_text,
         ai_audio_url=audio_url,
         detected_emotion=result.detected_emotion,
+        response_tone=result.response_tone,
+        tone_reason=result.tone_reason,
         response_source=result.response_source,
     )
 
@@ -79,5 +88,7 @@ def chat_speech(
         ai_text=result.ai_text,
         ai_audio_url=audio_url,
         detected_emotion=result.detected_emotion,
+        response_tone=result.response_tone,
+        tone_reason=result.tone_reason,
         response_source=result.response_source,
     )

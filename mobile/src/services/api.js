@@ -404,11 +404,18 @@ export const speechAPI = {
     }
   },
 
-  generateResponse: async (userMessage, detectedEmotion = 'Neutral', includeAudio = true) => {
+  generateResponse: async (
+    userMessage,
+    facialEmotion = 'Neutral',
+    includeAudio = true,
+    audioEmotion = 'neutral'
+  ) => {
     try {
       const response = await api.post('/speech/generate-response/', {
         user_message: userMessage,
-        detected_emotion: detectedEmotion,
+        detected_emotion: facialEmotion,
+        facial_emotion: facialEmotion,
+        audio_emotion: audioEmotion,
         include_audio: includeAudio,
       });
 
