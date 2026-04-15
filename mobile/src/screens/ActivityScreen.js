@@ -15,64 +15,64 @@ import BottomNavigation from '../components/BottomNavigation';
 const ActivityScreen = ({ navigation }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('week');
 
-  const activityData = {
-    day: {
-      stats: { sessions: '3', time: '1.2h', streak: '12d', rating: '4.8' },
-      chartTitle: 'Today\'s Interactions',
-      chartData: [
-        { day: 'Morning', sessions: 1, duration: 20 },
-        { day: 'Noon', sessions: 1, duration: 15 },
-        { day: 'Evening', sessions: 1, duration: 40 },
-      ],
-      emotions: [
-        { emotion: 'Happy', count: 12, percentage: 60, color: COLORS.success },
-        { emotion: 'Calm', count: 5, percentage: 25, color: COLORS.secondary },
-        { emotion: 'Neutral', count: 3, percentage: 15, color: COLORS.info },
-      ],
-      totalInteractions: 20,
-    },
-    week: {
-      stats: { sessions: '27', time: '6.2h', streak: '12d', rating: '4.3' },
-      chartTitle: 'Weekly Sessions',
-      chartData: [
-        { day: 'Mon', sessions: 3, duration: 45 },
-        { day: 'Tue', sessions: 5, duration: 68 },
-        { day: 'Wed', sessions: 2, duration: 32 },
-        { day: 'Thu', sessions: 4, duration: 55 },
-        { day: 'Fri', sessions: 6, duration: 78 },
-        { day: 'Sat', sessions: 3, duration: 42 },
-        { day: 'Sun', sessions: 4, duration: 51 },
-      ],
-      emotions: [
-        { emotion: 'Happy', count: 45, percentage: 35, color: COLORS.success },
-        { emotion: 'Calm', count: 38, percentage: 30, color: COLORS.secondary },
-        { emotion: 'Neutral', count: 25, percentage: 20, color: COLORS.info },
-        { emotion: 'Sad', count: 12, percentage: 10, color: COLORS.warning },
-        { emotion: 'Anxious', count: 6, percentage: 5, color: COLORS.error },
-      ],
-      totalInteractions: 126,
-    },
-    month: {
-      stats: { sessions: '104', time: '28.5h', streak: '12d', rating: '4.5' },
-      chartTitle: 'Monthly Sessions',
-      chartData: [
-        { day: 'Wk 1', sessions: 24, duration: 320 },
-        { day: 'Wk 2', sessions: 32, duration: 415 },
-        { day: 'Wk 3', sessions: 18, duration: 240 },
-        { day: 'Wk 4', sessions: 30, duration: 390 },
-      ],
-      emotions: [
-        { emotion: 'Happy', count: 180, percentage: 40, color: COLORS.success },
-        { emotion: 'Calm', count: 135, percentage: 30, color: COLORS.secondary },
-        { emotion: 'Neutral', count: 67, percentage: 15, color: COLORS.info },
-        { emotion: 'Sad', count: 45, percentage: 10, color: COLORS.warning },
-        { emotion: 'Anxious', count: 23, percentage: 5, color: COLORS.error },
-      ],
-      totalInteractions: 450,
-    }
-  };
+  // const activityData = {
+  //   day: {
+  //     stats: { sessions: '3', time: '1.2h', streak: '12d', rating: '4.8' },
+  //     chartTitle: 'Today\'s Interactions',
+  //     chartData: [
+  //       { day: 'Morning', sessions: 1, duration: 20 },
+  //       { day: 'Noon', sessions: 1, duration: 15 },
+  //       { day: 'Evening', sessions: 1, duration: 40 },
+  //     ],
+  //     emotions: [
+  //       { emotion: 'Happy', count: 12, percentage: 60, color: COLORS.success },
+  //       { emotion: 'Calm', count: 5, percentage: 25, color: COLORS.secondary },
+  //       { emotion: 'Neutral', count: 3, percentage: 15, color: COLORS.info },
+  //     ],
+  //     totalInteractions: 20,
+  //   },
+  //   week: {
+  //     stats: { sessions: '27', time: '6.2h', streak: '12d', rating: '4.3' },
+  //     chartTitle: 'Weekly Sessions',
+  //     chartData: [
+  //       { day: 'Mon', sessions: 3, duration: 45 },
+  //       { day: 'Tue', sessions: 5, duration: 68 },
+  //       { day: 'Wed', sessions: 2, duration: 32 },
+  //       { day: 'Thu', sessions: 4, duration: 55 },
+  //       { day: 'Fri', sessions: 6, duration: 78 },
+  //       { day: 'Sat', sessions: 3, duration: 42 },
+  //       { day: 'Sun', sessions: 4, duration: 51 },
+  //     ],
+  //     emotions: [
+  //       { emotion: 'Happy', count: 45, percentage: 35, color: COLORS.success },
+  //       { emotion: 'Calm', count: 38, percentage: 30, color: COLORS.secondary },
+  //       { emotion: 'Neutral', count: 25, percentage: 20, color: COLORS.info },
+  //       { emotion: 'Sad', count: 12, percentage: 10, color: COLORS.warning },
+  //       { emotion: 'Anxious', count: 6, percentage: 5, color: COLORS.error },
+  //     ],
+  //     totalInteractions: 126,
+  //   },
+  //   month: {
+  //     stats: { sessions: '104', time: '28.5h', streak: '12d', rating: '4.5' },
+  //     chartTitle: 'Monthly Sessions',
+  //     chartData: [
+  //       { day: 'Wk 1', sessions: 24, duration: 320 },
+  //       { day: 'Wk 2', sessions: 32, duration: 415 },
+  //       { day: 'Wk 3', sessions: 18, duration: 240 },
+  //       { day: 'Wk 4', sessions: 30, duration: 390 },
+  //     ],
+  //     emotions: [
+  //       { emotion: 'Happy', count: 180, percentage: 40, color: COLORS.success },
+  //       { emotion: 'Calm', count: 135, percentage: 30, color: COLORS.secondary },
+  //       { emotion: 'Neutral', count: 67, percentage: 15, color: COLORS.info },
+  //       { emotion: 'Sad', count: 45, percentage: 10, color: COLORS.warning },
+  //       { emotion: 'Anxious', count: 23, percentage: 5, color: COLORS.error },
+  //     ],
+  //     totalInteractions: 450,
+  //   }
+  // };
 
-  const currentData = activityData[selectedPeriod];
+  // const currentData = activityData[selectedPeriod];
 
   const insights = [
     {

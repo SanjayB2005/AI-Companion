@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 
 
-const HOST_IP = '192.168.1.4'; 
+const HOST_IP = '192.168.1.5'; 
 
 // More flexible URL configuration
 const getBaseURL = () => {
@@ -21,6 +21,31 @@ const getBaseURL = () => {
 };
 
 const BASE_URL = getBaseURL();
+
+const getServiceHost = () => {
+  if (Platform.OS === 'android') {
+    return `http://${HOST_IP}`;
+  }
+  return 'http://localhost';
+};
+
+export const resolveSpeechAudioUrl = (audioUrl) => {
+  if (!audioUrl) return null;
+  if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+    return audioUrl;
+  }
+
+  const host = getServiceHost();
+  if (audioUrl.startsWith('/static/')) {
+    return `${host}:8002${audioUrl}`;
+  }
+
+  if (audioUrl.startsWith('/')) {
+    return `${host}:8000${audioUrl}`;
+  }
+
+  return `${host}:8000/${audioUrl}`;
+};
 
 console.log('Platform:', Platform.OS);
 console.log('API Base URL:', BASE_URL);
@@ -341,6 +366,74 @@ export const emotionAPI = {
       }
       const response = await api.post('/emotions/detect/facial/', payload);
       return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+};
+
+export const speechAPI = {
+  startSession: async (includeAudio = true) => {
+    try {
+      const response = await api.post('/speech/sessions/start/', { include_audio: includeAudio });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  endSession: async (sessionId) => {
+    try {
+      const response = await api.post(`/speech/sessions/${sessionId}/end/`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  transcribeAudio: async (audioBase64, format = 'm4a', language = 'en') => {
+    try {
+      const response = await api.post('/speech/transcribe/', {
+        audio_base64: audioBase64,
+        format,
+        language,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  generateResponse: async (userMessage, detectedEmotion = 'Neutral', includeAudio = true) => {
+    try {
+      const response = await api.post('/speech/generate-response/', {
+        user_message: userMessage,
+        detected_emotion: detectedEmotion,
+        include_audio: includeAudio,
+      });
+
+      const payload = response.data || {};
+      return {
+        ...payload,
+        audio_url: resolveSpeechAudioUrl(payload.audio_url || payload.ai_audio_url),
+      };
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  synthesize: async (text, voiceRate = 175) => {
+    try {
+      const response = await api.post('/speech/synthesize/', {
+        text,
+        voice_rate: voiceRate,
+      });
+
+      const payload = response.data || {};
+      return {
+        ...payload,
+        audio_url: resolveSpeechAudioUrl(payload.audio_url || payload.ai_audio_url),
+      };
     } catch (error) {
       throw error.response?.data || error;
     }

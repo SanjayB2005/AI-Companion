@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'emotions',
+    'speech',
 ]
 
 MIDDLEWARE = [
@@ -242,5 +243,9 @@ CORS_ALLOW_HEADERS = [
 
 
 # Emotion service integration
-EMOTION_SERVICE_URL = config('EMOTION_SERVICE_URL', default='http://localhost:8001')
+EMOTION_SERVICE_URL = config('EMOTION_SERVICE_URL', default='http://localhost:8010')
 EMOTION_SERVICE_TIMEOUT = config('EMOTION_SERVICE_TIMEOUT', default=15, cast=int)
+
+# Speech service integration
+TTS_STT_SERVICE_URL = config('TTS_STT_SERVICE_URL', default='http://localhost:8002')
+TTS_STT_SERVICE_TIMEOUT = config('TTS_STT_SERVICE_TIMEOUT', default=30, cast=int)

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Emotion Test UI</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #0f766e;
+      --danger: #dc2626;
+      --border: #dbe3ef;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 40%);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+    }
+    h1 {
+      margin-top: 0;
+      margin-bottom: 6px;
+      font-size: 1.5rem;
+    }
+    .sub {
+      margin-top: 0;
+      color: var(--muted);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+    button.secondary {
+      background: #475569;
+    }
+    button.danger {
+      background: var(--danger);
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .status {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      min-height: 20px;
+    }
+    .video-row {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+    @media (max-width: 860px) {
+      .video-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    video {
+      width: 100%;
+      border-radius: 12px;
+      background: #111827;
+      border: 1px solid #1f2937;
+    }
+    .result {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafcff;
+    }
+    .emotion {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 6px 0;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0b1220;
+      color: #dbeafe;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      max-height: 240px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Live Facial Emotion Test</h1>
+      <p class="sub">Standalone local test UI for FastAPI emotion service.</p>
+
+      <div class="controls">
+        <button id="startSessionBtn">Start Session</button>
+        <button id="startStreamBtn" class="secondary" disabled>Start Webcam</button>
+        <button id="predictBtn" class="secondary" disabled>Predict Once</button>
+        <button id="autoBtn" class="secondary" disabled>Start Auto Predict</button>
+        <button id="endSessionBtn" class="danger" disabled>End Session</button>
+      </div>
+
+      <div class="status" id="statusText">Idle</div>
+
+      <div class="video-row">
+        <div>
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="canvas" width="640" height="480" style="display:none"></canvas>
+        </div>
+        <div class="result">
+          <div class="meta">Session ID: <span id="sessionId">-</span></div>
+          <div class="meta">Prediction Count: <span id="predictCount">0</span></div>
+          <div class="emotion" id="emotionText">-</div>
+          <div class="meta" id="confidenceText">Confidence: -</div>
+          <pre id="payloadPreview">No prediction yet.</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const statusText = document.getElementById('statusText');
+    const sessionIdEl = document.getElementById('sessionId');
+    const predictCountEl = document.getElementById('predictCount');
+    const emotionTextEl = document.getElementById('emotionText');
+    const confidenceTextEl = document.getElementById('confidenceText');
+    const payloadPreviewEl = document.getElementById('payloadPreview');
+
+    const startSessionBtn = document.getElementById('startSessionBtn');
+    const startStreamBtn = document.getElementById('startStreamBtn');
+    const predictBtn = document.getElementById('predictBtn');
+    const autoBtn = document.getElementById('autoBtn');
+    const endSessionBtn = document.getElementById('endSessionBtn');
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let sessionId = null;
+    let stream = null;
+    let autoTimer = null;
+
+    function setStatus(text) {
+      statusText.textContent = text;
+    }
+
+    function setButtons() {
+      const hasSession = !!sessionId;
+      const hasStream = !!stream;
+
+      startSessionBtn.disabled = hasSession;
+      startStreamBtn.disabled = !hasSession || hasStream;
+      predictBtn.disabled = !hasSession || !hasStream;
+      autoBtn.disabled = !hasSession || !hasStream;
+      endSessionBtn.disabled = !hasSession;
+
+      if (!hasStream) {
+        autoBtn.textContent = 'Start Auto Predict';
+      }
+    }
+
+    async function startSession() {
+      setStatus('Starting session...');
+      const res = await fetch('/emotions/sessions/start/', { method: 'POST' });
+      if (!res.ok) {
+        throw new Error(`Start session failed: ${res.status}`);
+      }
+      const data = await res.json();
+      sessionId = data.session.id;
+      sessionIdEl.textContent = sessionId;
+      predictCountEl.textContent = '0';
+      emotionTextEl.textContent = '-';
+      confidenceTextEl.textContent = 'Confidence: -';
+      payloadPreviewEl.textContent = JSON.stringify(data, null, 2);
+      setStatus('Session started. You can now open webcam.');
+      setButtons();
+    }
+
+    async function startWebcam() {
+      setStatus('Opening webcam...');
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      video.srcObject = stream;
+      await video.play();
+      setStatus('Webcam active. Ready to predict.');
+      setButtons();
+    }
+
+    async function predictOnce() {
+      if (!sessionId || !stream) return;
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+      if (!blob) {
+        throw new Error('Failed to capture image frame');
+      }
+
+      const formData = new FormData();
+      formData.append('image', blob, 'frame.jpg');
+      formData.append('min_confidence', '0.2');
+
+      const res = await fetch(`/emotions/sessions/${sessionId}/predict/`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `Predict failed: ${res.status}`);
+      }
+
+      emotionTextEl.textContent = data.emotion || '-';
+      confidenceTextEl.textContent = `Confidence: ${((data.confidence || 0) * 100).toFixed(1)}%`;
+      predictCountEl.textContent = String(data.prediction_count || 0);
+      payloadPreviewEl.textContent = JSON.stringify(data, null, 2);
+      setStatus('Prediction updated');
+    }
+
+    async function endSession() {
+      if (!sessionId) return;
+
+      setStatus('Ending session...');
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+      }
+
+      const res = await fetch(`/emotions/sessions/${sessionId}/end/`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || `End session failed: ${res.status}`);
+      }
+
+      payloadPreviewEl.textContent = JSON.stringify(data, null, 2);
+      sessionId = null;
+      sessionIdEl.textContent = '-';
+      setStatus('Session ended.');
+
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+      setButtons();
+    }
+
+    startSessionBtn.addEventListener('click', async () => {
+      try {
+        await startSession();
+      } catch (err) {
+        setStatus(err.message);
+      }
+    });
+
+    startStreamBtn.addEventListener('click', async () => {
+      try {
+        await startWebcam();
+      } catch (err) {
+        setStatus(err.message);
+      }
+    });
+
+    predictBtn.addEventListener('click', async () => {
+      try {
+        await predictOnce();
+      } catch (err) {
+        setStatus(err.message);
+      }
+    });
+
+    autoBtn.addEventListener('click', async () => {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        autoBtn.textContent = 'Start Auto Predict';
+        setStatus('Auto predict stopped');
+        return;
+      }
+
+      autoBtn.textContent = 'Stop Auto Predict';
+      setStatus('Auto predict every 1 second');
+      autoTimer = setInterval(async () => {
+        try {
+          await predictOnce();
+        } catch (err) {
+          setStatus(err.message);
+        }
+      }, 1000);
+    });
+
+    endSessionBtn.addEventListener('click', async () => {
+      try {
+        await endSession();
+      } catch (err) {
+        setStatus(err.message);
+      }
+    });
+
+    setButtons();
+  </script>
+</body>
+</html>

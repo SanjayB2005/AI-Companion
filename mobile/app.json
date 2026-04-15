@@ -7,11 +7,17 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emotioncompanion.app"
+      "bundleIdentifier": "com.emotioncompanion.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app uses the microphone for speech-to-text conversations with your companion."
+      }
     },
     "android": {
       "package": "com.emotioncompanion.app",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     }
   }
 }

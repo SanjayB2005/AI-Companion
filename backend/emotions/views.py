@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -6,13 +7,30 @@ from rest_framework.response import Response
 
 from .models import EmotionSession
 from .serializers import DetectEmotionDetailedSerializer, DetectEmotionSerializer, EmotionSessionSerializer
-from .services import EmotionServiceError, detect_facial_emotion, detect_facial_emotion_detailed
+from .services import (
+    EmotionServiceError,
+    detect_facial_emotion,
+    detect_facial_emotion_detailed,
+    end_emotion_session as end_remote_emotion_session,
+    start_emotion_session as start_remote_emotion_session,
+)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def start_emotion_session(request):
-    session = EmotionSession.objects.create(user=request.user)
+    with transaction.atomic():
+        session = EmotionSession.objects.create(user=request.user)
+
+        try:
+            start_remote_emotion_session(session.id)
+        except EmotionServiceError as exc:
+            session.delete()
+            return Response(
+                {'error': 'Emotion service unavailable', 'detail': str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
     return Response(
         {
             'session': EmotionSessionSerializer(session).data,
@@ -29,6 +47,14 @@ def end_emotion_session(request, session_id: int):
         session = EmotionSession.objects.get(id=session_id, user=request.user)
     except EmotionSession.DoesNotExist:
         return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        end_remote_emotion_session(session.id)
+    except EmotionServiceError as exc:
+        return Response(
+            {'error': 'Emotion service unavailable', 'detail': str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
     if session.session_end is None:
         session.session_end = timezone.now()

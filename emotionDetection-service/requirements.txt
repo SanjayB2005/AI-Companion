@@ -1,9 +1,0 @@
-fastapi==0.115.2
-uvicorn[standard]==0.31.1
-python-jose[cryptography]==3.3.0
-pydantic==2.9.2
-pydantic-settings==2.6.1
-python-dotenv==1.0.1
-numpy==2.1.2
-opencv-python-headless==4.10.0.84
-deepface==0.0.93

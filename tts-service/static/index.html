@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Companion Tester</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="card">
+        <h1>AI Companion Tester</h1>
+        <p class="subtitle">Type or speak, then get AI text and optional voice.</p>
+
+        <div class="controls">
+          <textarea id="message" placeholder="Type your message..."></textarea>
+          <div class="row">
+            <label><input type="checkbox" id="withVoice" /> Generate AI voice response</label>
+          </div>
+          <div class="row">
+            <button id="sendText">Send Text</button>
+            <button id="recordSpeech">Speak</button>
+            <span id="status">Idle</span>
+          </div>
+        </div>
+
+        <div id="chat" class="chat"></div>
+        <div id="emotionIndicator" class="emotion-indicator"></div>
+        <audio id="audioPlayer" controls></audio>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

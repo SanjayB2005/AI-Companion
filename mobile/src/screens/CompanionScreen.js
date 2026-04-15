@@ -11,34 +11,29 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Audio } from 'expo-av';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { COLORS, SIZES } from '../constants/theme';
 import Svg, { Path, Circle } from 'react-native-svg';
 import VoiceAnimationWave from '../components/VoiceAnimationWave';
 import DraggableVideoScreen from '../components/DraggableVideoScreen';
 import SettingsModal from '../components/SettingsModal';
-import { emotionAPI } from '../services/api';
+import { emotionAPI, speechAPI } from '../services/api';
 
 const CompanionScreen = ({ navigation, route }) => {
   const { companionName = 'MindBuilder' } = route?.params || {};
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      text: `Hello! I'm ${companionName}, your emotional support companion. I can understand your emotions through voice and facial expressions. How are you feeling today?`,
-      sender: 'ai',
-      timestamp: new Date(),
-      emotion: 'friendly',
-      aiEmotion: 'welcoming',
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isVideoMinimized, setIsVideoMinimized] = useState(false);
   const [detectedEmotion, setDetectedEmotion] = useState({ emotion: 'Neutral', confidence: 0 });
   const [loading, setLoading] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [emotionSessionId, setEmotionSessionId] = useState(null);
+  const [speechSessionId, setSpeechSessionId] = useState(null);
   const [lastDetectionAt, setLastDetectionAt] = useState(null);
   const [settings, setSettings] = useState({
     audioEnabled: true,
@@ -51,7 +46,10 @@ const CompanionScreen = ({ navigation, route }) => {
   const scrollViewRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const sessionIdRef = useRef(null);
+  const speechSessionIdRef = useRef(null);
   const detectionInFlightRef = useRef(false);
+  const recordingRef = useRef(null);
+  const playbackRef = useRef(null);
 
   useEffect(() => {
     loadSettings();
@@ -82,12 +80,22 @@ const CompanionScreen = ({ navigation, route }) => {
   useEffect(() => {
     const startSession = async () => {
       try {
-        const response = await emotionAPI.startSession();
-        const id = response?.session?.id || null;
-        sessionIdRef.current = id;
-        setEmotionSessionId(id);
+        const [emotionResponse, speechResponse] = await Promise.all([
+          emotionAPI.startSession(),
+          speechAPI.startSession(settings.audioEnabled),
+        ]);
+
+        const emotionId = emotionResponse?.session?.id || null;
+        const speechId = speechResponse?.session?.id || null;
+
+        sessionIdRef.current = emotionId;
+        speechSessionIdRef.current = speechId;
+        setEmotionSessionId(emotionId);
+        setSpeechSessionId(speechId);
+
+        await loadWelcomeMessage();
       } catch (error) {
-        console.error('Error starting emotion session:', error);
+        console.error('Error starting sessions:', error);
       }
     };
 
@@ -95,9 +103,25 @@ const CompanionScreen = ({ navigation, route }) => {
 
     return () => {
       const currentSessionId = sessionIdRef.current;
+      const currentSpeechSessionId = speechSessionIdRef.current;
+
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      }
+
+      if (playbackRef.current) {
+        playbackRef.current.unloadAsync().catch(() => {});
+      }
+
       if (currentSessionId) {
         emotionAPI.endSession(currentSessionId).catch((error) => {
           console.error('Error ending emotion session:', error);
+        });
+      }
+
+      if (currentSpeechSessionId) {
+        speechAPI.endSession(currentSpeechSessionId).catch((error) => {
+          console.error('Error ending speech session:', error);
         });
       }
     };
@@ -118,36 +142,146 @@ const CompanionScreen = ({ navigation, route }) => {
     }
   };
 
-  const mockAIResponses = [
-    {
-      texts: ["I understand how you're feeling. It's completely normal to have these emotions.", "Tell me more about what's on your mind."],
-      emotion: 'empathetic',
-    },
-    {
-      texts: ["That sounds challenging. I'm here to support you through this.", "How long have you been feeling this way?"],
-      emotion: 'supportive',
-    },
-    {
-      texts: ["That's wonderful! I can sense your positive energy.", "What's making you feel so good today?"],
-      emotion: 'happy',
-    },
-    {
-      texts: ["I hear you. Sometimes it helps to talk about these things.", "Would you like to explore this feeling together?"],
-      emotion: 'understanding',
-    },
-    {
-      texts: ["Your feelings are valid. Let's work through this step by step.", "What would make you feel better right now?"],
-      emotion: 'caring',
-    },
-  ];
+  const addAIMessage = (text, aiEmotion = 'neutral') => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: (Date.now() + Math.random()).toString(),
+        text,
+        sender: 'ai',
+        timestamp: new Date(),
+        aiEmotion,
+      },
+    ]);
+  };
 
-  const mockEmotions = [
-    { emotion: 'Happy', confidence: 0.85 },
-    { emotion: 'Calm', confidence: 0.72 },
-    { emotion: 'Thoughtful', confidence: 0.68 },
-    { emotion: 'Neutral', confidence: 0.55 },
-    { emotion: 'Concerned', confidence: 0.63 },
-  ];
+  const loadWelcomeMessage = async () => {
+    try {
+      const response = await speechAPI.generateResponse(
+        `Greet the user as ${companionName}, a supportive emotional companion. Keep it short, friendly, and ask how they are feeling today.`,
+        'Neutral',
+        false
+      );
+
+      console.log('Welcome response:', response);
+
+      const welcomeText = response?.response_text || response?.ai_text;
+      if (welcomeText) {
+        addAIMessage(welcomeText, response?.detected_emotion || 'welcoming');
+        return;
+      }
+
+      throw new Error('Welcome response did not include ai text');
+    } catch (error) {
+      console.error('Failed to load tts-service welcome message:', error);
+      addAIMessage('Welcome message unavailable. Please check TTS service / LLM connection.', 'Concerned');
+    }
+  };
+
+  const playAIAudio = async (audioUrl) => {
+    if (!audioUrl) {
+      return;
+    }
+
+    try {
+      if (playbackRef.current) {
+        await playbackRef.current.unloadAsync();
+        playbackRef.current = null;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true }
+      );
+      playbackRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync().catch(() => {});
+          if (playbackRef.current === sound) {
+            playbackRef.current = null;
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Audio playback failed:', error);
+    }
+  };
+
+  const getAudioFormatFromUri = (uri) => {
+    if (Platform.OS === 'web') {
+      return 'webm';
+    }
+
+    if (!uri || typeof uri !== 'string') {
+      return 'm4a';
+    }
+
+    const cleanPath = uri.split('?')[0].toLowerCase();
+    const extension = cleanPath.includes('.') ? cleanPath.split('.').pop() : '';
+    const supported = ['m4a', 'wav', 'webm', 'mp3', 'aac', 'caf'];
+    return supported.includes(extension) ? extension : 'm4a';
+  };
+
+  const readAudioAsBase64 = async (uri) => {
+    if (Platform.OS !== 'web') {
+      return FileSystemLegacy.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+    }
+
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new Error(`Failed to load recorded audio: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        const base64 = result.includes(',') ? result.split(',')[1] : result;
+        if (!base64) {
+          reject(new Error('Failed to convert recorded audio to base64'));
+          return;
+        }
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Unable to read recorded audio file'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const requestAIResponse = async (userText) => {
+    setLoading(true);
+    try {
+      const response = await speechAPI.generateResponse(
+        userText,
+        detectedEmotion.emotion || 'Neutral',
+        settings.audioEnabled
+      );
+
+      console.log('AI response payload:', response);
+
+      const aiText = (response?.response_text || response?.ai_text || '').trim();
+      if (!aiText) {
+        throw new Error('TTS service returned empty ai text');
+      }
+
+      const aiEmotion = response?.detected_emotion || 'neutral';
+
+      addAIMessage(aiText, aiEmotion);
+
+      if (settings.audioEnabled && response?.audio_url) {
+        await playAIAudio(response.audio_url);
+      }
+    } catch (error) {
+      console.error('Failed to get AI response:', error);
+      addAIMessage('I had trouble reaching the speech service. Please try again in a moment.', 'Concerned');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const detectEmotionFromFrame = async (frameBase64) => {
     if (!settings.emotionDetection || detectionInFlightRef.current) {
@@ -176,9 +310,10 @@ const CompanionScreen = ({ navigation, route }) => {
   const handleSendMessage = async () => {
     if (!message.trim()) return;
 
+    const userText = message.trim();
     const userMessage = {
       id: Date.now().toString(),
-      text: message,
+      text: userText,
       sender: 'user',
       timestamp: new Date(),
       detectedEmotion: detectedEmotion.emotion,
@@ -187,77 +322,98 @@ const CompanionScreen = ({ navigation, route }) => {
 
     setMessages(prev => [...prev, userMessage]);
     setMessage('');
-    setLoading(true);
 
-    // Simulate AI response with delay based on settings
-    const delays = { fast: 500, normal: 1200, thoughtful: 2000 };
-    const delay = delays[settings.responseSpeed] || 1200;
-
-    setTimeout(() => {
-      const responseData = mockAIResponses[Math.floor(Math.random() * mockAIResponses.length)];
-      const responses = responseData.texts;
-      
-      responses.forEach((text, index) => {
-        setTimeout(() => {
-          const aiResponse = {
-            id: (Date.now() + index).toString(),
-            text: text,
-            sender: 'ai',
-            timestamp: new Date(),
-            aiEmotion: responseData.emotion,
-          };
-          setMessages(prev => [...prev, aiResponse]);
-          if (index === responses.length - 1) {
-            setLoading(false);
-          }
-        }, index * 800);
-      });
-    }, delay);
+    await requestAIResponse(userText);
   };
 
-  const toggleVoiceRecording = () => {
+  const toggleVoiceRecording = async () => {
     if (!settings.audioEnabled) {
       return;
     }
 
-    setIsRecording(!isRecording);
-    
     if (!isRecording) {
-      // Start recording - simulate voice emotion detection
-      const randomEmotion = mockEmotions[Math.floor(Math.random() * mockEmotions.length)];
-      setDetectedEmotion(randomEmotion);
-      
-      // Simulate processing after 3 seconds
-      setTimeout(() => {
-        setIsRecording(false);
-        
-        // Add voice message to chat
-        const voiceMessage = {
+      try {
+        const permission = await Audio.requestPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Microphone Permission', 'Microphone access is required for voice chat.');
+          return;
+        }
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const recording = new Audio.Recording();
+        await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        await recording.startAsync();
+        recordingRef.current = recording;
+        setIsRecording(true);
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        Alert.alert('Recording Error', 'Unable to start recording. Please try again.');
+      }
+
+      return;
+    }
+
+    try {
+      setIsRecording(false);
+
+      const recording = recordingRef.current;
+      if (!recording) {
+        return;
+      }
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      recordingRef.current = null;
+
+      if (!uri) {
+        throw new Error('Recording URI not available');
+      }
+
+      setLoading(true);
+      const audioBase64 = await readAudioAsBase64(uri);
+
+      const audioFormat = getAudioFormatFromUri(uri);
+      const transcriptResponse = await speechAPI.transcribeAudio(audioBase64, audioFormat);
+      const transcript = (transcriptResponse?.text || '').trim();
+      const voiceEmotion = transcriptResponse?.detected_emotion || detectedEmotion.emotion || 'Neutral';
+
+      setDetectedEmotion((prev) => ({
+        emotion: voiceEmotion,
+        confidence: prev.confidence || 0,
+      }));
+
+      if (!transcript) {
+        addAIMessage('I could not hear any speech clearly. Please try again.', 'Concerned');
+        setLoading(false);
+        return;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
           id: Date.now().toString(),
-          text: '🎤 Voice message (emotion detected: ' + randomEmotion.emotion + ')',
+          text: transcript,
           sender: 'user',
           timestamp: new Date(),
           isVoice: true,
-          detectedEmotion: randomEmotion.emotion,
-        };
-        
-        setMessages(prev => [...prev, voiceMessage]);
-        
-        // Trigger AI response
-        setLoading(true);
-        setTimeout(() => {
-          const responseData = mockAIResponses[Math.floor(Math.random() * mockAIResponses.length)];
-          const aiResponse = {
-            id: (Date.now() + 1).toString(),
-            text: responseData.texts[0],
-            sender: 'ai',
-            timestamp: new Date(),
-            aiEmotion: responseData.emotion,
-          };
-          setMessages(prev => [...prev, aiResponse]);
-          setLoading(false);
-        }, 1000);
-      }, 3000);
+          detectedEmotion: voiceEmotion,
+          sessionId: speechSessionId,
+        },
+      ]);
+
+      await requestAIResponse(transcript);
+    } catch (error) {
+      console.error('Voice processing failed:', error);
+      setLoading(false);
+      addAIMessage('Voice processing failed. Please try recording again.', 'Concerned');
+    } finally {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      }).catch(() => {});
     }
   };
 
@@ -266,12 +422,6 @@ const CompanionScreen = ({ navigation, route }) => {
       return;
     }
     setIsVideoMinimized(!isVideoMinimized);
-    
-    if (!isVideoMinimized) {
-      // Starting video - update emotion detection
-      const randomEmotion = mockEmotions[Math.floor(Math.random() * mockEmotions.length)];
-      setDetectedEmotion(randomEmotion);
-    }
   };
 
   const closeVideo = () => {
